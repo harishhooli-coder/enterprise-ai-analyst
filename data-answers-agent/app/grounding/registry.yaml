@@ -1,0 +1,77 @@
+# Grounding registry — semantic-layer stand-in for the walking skeleton.
+# TODO(harden): back registry with dbt Semantic Layer or Cube; add join-path graph reasoning
+
+metrics:
+  - id: total_revenue
+    name: Total Revenue
+    description: Sum of gross revenue for a calendar month by region
+    aliases:
+      - total revenue
+      - gross revenue
+      - total sales
+      - revenue
+    template: |
+      SELECT SUM(amount) AS total_revenue
+      FROM `{project}.{dataset}.sales`
+      WHERE month = @month
+        AND {region_filter}
+    parameters:
+      - name: month
+        type: string
+        description: Calendar month in YYYY-MM format
+        required: true
+      - name: region_filter
+        type: string
+        description: Row-level region predicate injected from user principal (not from question)
+        required: true
+        resolved_by: warehouse
+    ambiguity_group: revenue
+
+  - id: net_revenue
+    name: Net Revenue
+    description: Revenue after returns, discounts, and adjustments for a calendar month
+    aliases:
+      - net revenue
+      - revenue after returns
+      - adjusted revenue
+      - revenue
+    template: |
+      SELECT SUM(net_amount) AS net_revenue
+      FROM `{project}.{dataset}.sales`
+      WHERE month = @month
+        AND {region_filter}
+    parameters:
+      - name: month
+        type: string
+        description: Calendar month in YYYY-MM format
+        required: true
+      - name: region_filter
+        type: string
+        description: Row-level region predicate injected from user principal (not from question)
+        required: true
+        resolved_by: warehouse
+    ambiguity_group: revenue
+
+  - id: active_customers
+    name: Active Customers
+    description: Count of distinct active customers in a calendar month
+    aliases:
+      - active customers
+      - customer count
+      - customers
+    template: |
+      SELECT COUNT(DISTINCT customer_id) AS active_customers
+      FROM `{project}.{dataset}.customers`
+      WHERE month = @month
+        AND {region_filter}
+    parameters:
+      - name: month
+        type: string
+        description: Calendar month in YYYY-MM format
+        required: true
+      - name: region_filter
+        type: string
+        description: Row-level region predicate injected from user principal (not from question)
+        required: true
+        resolved_by: warehouse
+    ambiguity_group: customers
