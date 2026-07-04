@@ -26,6 +26,9 @@ embeddings = [
   "sentence-transformers>=3.0",
   "numpy>=1.26",
 ]
+postgres = [
+  "psycopg[binary]>=3.2",
+]
 
 [build-system]
 requires = ["setuptools>=61"]

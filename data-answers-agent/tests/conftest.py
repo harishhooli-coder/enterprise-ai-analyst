@@ -46,7 +46,8 @@ def no_regions_principal():
 @pytest.fixture
 def mock_warehouse(monkeypatch):
     """Route E2E tests through seed-data mock warehouse (no monkeypatched stubs)."""
-    monkeypatch.delenv("BQ_USE_MOCK", raising=False)
+    monkeypatch.setenv("WAREHOUSE_BACKEND", "mock")
+    monkeypatch.setenv("BQ_USE_MOCK", "1")
     monkeypatch.setenv("BQ_PROJECT_ID", "dev-project")
     get_settings.cache_clear()
 

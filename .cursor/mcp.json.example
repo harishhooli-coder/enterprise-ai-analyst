@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "neon-postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
+      ]
+    },
+    "pdfs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\path\\to\\your\\folder"
+      ]
+    },
+    "bigquery": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@toolbox-sdk/server",
+        "--prebuilt",
+        "bigquery",
+        "--stdio"
+      ],
+      "env": {
+        "BIGQUERY_PROJECT": "your-gcp-project-id"
+      }
+    }
+  }
+}

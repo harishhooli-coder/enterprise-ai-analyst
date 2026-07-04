@@ -50,12 +50,21 @@ def get_last_bytes_billed() -> int:
     return _last_bytes_billed
 
 
+def _use_postgres_mode() -> bool:
+    settings = get_settings()
+    return settings.warehouse_backend == "postgres" and bool(settings.database_url.strip())
+
+
 def _use_mock_mode() -> bool:
     if _bq_client_factory is not None:
         return False
+    if _use_postgres_mode():
+        return False
+    settings = get_settings()
+    if settings.warehouse_backend == "mock":
+        return True
     if os.getenv("BQ_USE_MOCK", "").lower() in ("1", "true", "yes"):
         return True
-    settings = get_settings()
     if not settings.bq_project_id or settings.bq_project_id == "dev-project":
         return True
     try:
@@ -128,6 +137,18 @@ def query_warehouse(
             template_id=metric_id,
             executing_identity_id=execution_context.executing_identity_id,
         )
+
+    if _use_postgres_mode():
+        from app.tools.postgres_warehouse import execute_postgres_query
+
+        result = execute_postgres_query(
+            template_sql,
+            params,
+            execution_context,
+            metric_id=metric_id,
+        )
+        _last_bytes_billed = result.bytes_scanned
+        return result
 
     from google.cloud import bigquery
 

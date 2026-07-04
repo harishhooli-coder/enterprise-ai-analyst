@@ -70,6 +70,11 @@ class Settings(BaseSettings):
         default="http://localhost:3000",
         validation_alias="CORS_ORIGINS",
     )
+    warehouse_backend: Literal["mock", "bigquery", "postgres"] = Field(
+        default="mock",
+        validation_alias="WAREHOUSE_BACKEND",
+    )
+    database_url: str = Field(default="", validation_alias="DATABASE_URL")
 
 
 @lru_cache
