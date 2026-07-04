@@ -1,0 +1,58 @@
+---
+description: Always use parallel subagents for development tasks
+alwaysApply: true
+---
+
+# Parallel Subagents for Development
+
+Default to **parallel subagents** (Task tool) whenever development work can be split into independent tracks. Do not serialize exploration, implementation prep, or verification when those steps can run concurrently.
+
+## When to parallelize
+
+Launch subagents in parallel when any of these apply:
+
+- **Multi-area exploration** — codebase structure, API routes, tests, config, or docs in different paths
+- **Independent reads** — several files/modules must be understood before implementing
+- **Build + verify** — implementation alongside test runs, lint checks, or CI investigation
+- **Review + fix loops** — Bugbot/security-review while continuing unrelated work (only when explicitly requested)
+- **User asks for parallel execution** — honor explicit "in parallel" requests with a single message containing multiple Task calls
+
+## How to parallelize
+
+- Send **one message** with **multiple Task tool calls** so subagents start together
+- Pick the right type per track:
+  - `explore` — fast read-only codebase search
+  - `generalPurpose` — multi-step research or mixed read/write
+  - `shell` — git, tests, commands
+  - `ci-investigator` — single failing CI check diagnosis
+- Give each subagent a **narrow, self-contained prompt** with paths, goal, and expected return format
+- Merge results before acting; resolve conflicts explicitly
+
+## Examples
+
+```
+# ✅ GOOD — parallel exploration before a feature
+Task(explore): "Find POST /ask route, orchestrator entry, and test fixtures"
+Task(explore): "Find grounding registry format and grounding_service usage"
+Task(shell): "Run pytest tests/ -q and report failures"
+
+# ❌ BAD — serial when parallel works
+Task(explore) → wait → Task(explore) → wait → implement
+```
+
+## When NOT to parallelize
+
+Skip subagents (use direct tools instead) when:
+
+- The query is **narrow** — one known file, symbol, or grep target
+- Steps are **strictly sequential** — step B depends on step A's output
+- The task is **trivial** — a single edit, one command, or one file read
+
+Even then, **batch independent tool calls** (Read, Grep, Glob) in one message instead of serial round-trips.
+
+## Anti-patterns
+
+- Delegating the entire user request to one subagent when you could split explore / implement / test
+- Running identical exploration in multiple subagents
+- Launching write-capable subagents in parallel on the **same files** (race risk)
+- Using subagents for work that one direct Read or Grep resolves
