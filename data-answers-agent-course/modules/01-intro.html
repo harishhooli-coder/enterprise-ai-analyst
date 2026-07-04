@@ -1,0 +1,206 @@
+<section class="module" id="module-1" style="background: var(--color-bg);">
+  <div class="module-content">
+
+    <header class="module-header animate-in">
+      <span class="module-number">01</span>
+      <h2 class="module-title">Ask a Question</h2>
+      <p class="module-subtitle">Like asking a reference librarian for a pre-approved fact sheet — not for a guess.</p>
+    </header>
+
+    <!-- Screen 1: What the app does -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">A librarian, not an improviser</h3>
+      <p>Imagine you walk up to a reference desk and ask: <em>What was total revenue last month?</em> You do not want the librarian to invent numbers from memory. You want them to pull a vetted fact sheet from a trusted shelf.</p>
+      <p>That is what the Data-Answers Agent does for business users. You type a plain-English question in plain language. The system looks up a pre-approved answer path — never free-form SQL improvisation — and returns a number you can trust.</p>
+      <p>Two pieces work together: <strong>data-answers-ui</strong> (the Test Console you click in) and <strong>data-answers-agent</strong> (the Python backend that does the heavy lifting).</p>
+
+      <div class="callout callout-accent animate-in">
+        <span class="callout-icon">💡</span>
+        <div class="callout-content">
+          <span class="callout-title">Build first, understand later</span>
+          <p>This course follows the same order as the repo: you can run the app before you understand every file. Use this module to map <em>your click</em> to <em>the first line of code</em> that moves.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2: User action + flow animation -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">What you actually do in AskConsole</h3>
+      <p>Open the Test Console (<strong>AskConsole</strong> in the Next.js UI). Type a question like <em>What was total revenue last month?</em>, pick a user ID and regions, then hit <strong>Ask</strong>.</p>
+      <p>That single click kicks off a chain: your browser packages the question and sends it to the backend. Nothing magic — just a structured message over the network.</p>
+
+      <div class="step-cards stagger-children">
+        <div class="step-card animate-in">
+          <span class="step-num">1</span>
+          <div class="step-body">
+            <strong>Type your question</strong>
+            <p>The text box is where a business user speaks in everyday language.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">2</span>
+          <div class="step-body">
+            <strong>Set who you are</strong>
+            <p>User ID and regions travel with the question so the backend knows whose data to show.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">3</span>
+          <div class="step-body">
+            <strong>Click Ask</strong>
+            <p>AskConsole calls the backend <span class="term" data-definition="Application Programming Interface — a agreed way for two programs to talk to each other over the network.">API</span> and waits for an answer card.</p>
+          </div>
+        </div>
+      </div>
+
+      <h4 class="screen-heading" style="font-size: var(--text-xl); margin-top: var(--space-8);">Message flow: from your keyboard to the backend</h4>
+      <p>Step through the animation below. Each hop is a real stop in the codebase on the way to an answer.</p>
+
+      <div class="flow-animation animate-in"
+           data-steps="[{&quot;label&quot;:&quot;Step 1 — You type a question and click Ask in AskConsole.&quot;,&quot;highlight&quot;:&quot;flow-actor-1&quot;},{&quot;label&quot;:&quot;Step 2 — AskConsole packages your question and user info into a JSON body.&quot;,&quot;packet&quot;:true,&quot;from&quot;:&quot;actor-1&quot;,&quot;to&quot;:&quot;actor-2&quot;,&quot;highlight&quot;:&quot;flow-actor-2&quot;},{&quot;label&quot;:&quot;Step 3 — AskConsole sends a POST request to the FastAPI /ask endpoint over the network.&quot;,&quot;packet&quot;:true,&quot;from&quot;:&quot;actor-2&quot;,&quot;to&quot;:&quot;actor-3&quot;,&quot;highlight&quot;:&quot;flow-actor-3&quot;},{&quot;label&quot;:&quot;Step 4 — FastAPI hands the validated request to the Orchestrator to decide what happens next.&quot;,&quot;packet&quot;:true,&quot;from&quot;:&quot;actor-3&quot;,&quot;to&quot;:&quot;actor-4&quot;,&quot;highlight&quot;:&quot;flow-actor-4&quot;}]">
+        <div class="flow-actors">
+          <div class="flow-actor" id="flow-actor-1">
+            <div class="flow-actor-icon" style="background: var(--color-actor-1); color: white; border-color: var(--color-actor-1);">👤</div>
+            <span>User</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-2">
+            <div class="flow-actor-icon" style="background: var(--color-actor-2); color: white; border-color: var(--color-actor-2);">🖥</div>
+            <span>Test Console UI</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-3">
+            <div class="flow-actor-icon" style="background: var(--color-actor-3); color: white; border-color: var(--color-actor-3);">⚡</div>
+            <span>FastAPI /ask</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-4">
+            <div class="flow-actor-icon" style="background: var(--color-actor-4); color: white; border-color: var(--color-actor-4);">🎯</div>
+            <span>Orchestrator</span>
+          </div>
+        </div>
+        <div class="flow-packet"></div>
+        <div class="flow-step-label">Click &ldquo;Next Step&rdquo; to begin</div>
+        <div class="flow-controls">
+          <button type="button" class="btn flow-next-btn">Next Step</button>
+          <button type="button" class="btn flow-reset-btn">Reset</button>
+          <span class="flow-progress">Step 0 / 4</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Code translation api.ts -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">The code behind the Ask button</h3>
+      <p>When you click Ask, AskConsole calls <code>askQuestion</code> in <code>data-answers-ui/lib/api.ts</code>. These four lines are the handoff from UI to backend.</p>
+
+      <div class="translation-block animate-in">
+        <div class="translation-code">
+          <span class="translation-label">api.ts</span>
+          <pre><code><span class="code-line"><span class="code-keyword">export async function</span> <span class="code-function">askQuestion</span>(body: AskRequest): <span class="code-keyword">Promise</span>&lt;ApiResponse&gt; {</span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-function">request</span>&lt;ApiResponse&gt;(<span class="code-string">"/ask"</span>, {</span>
+<span class="code-line">    method: <span class="code-string">"POST"</span>,</span>
+<span class="code-line">    body: <span class="code-function">JSON.stringify</span>(body),</span>
+<span class="code-line">  });</span>
+<span class="code-line">}</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">Plain English</span>
+          <div class="translation-lines">
+            <div class="tl"><strong>Line 39 —</strong> Export a function named <code>askQuestion</code>. It takes the question plus user info and promises to return a typed response envelope.</div>
+            <div class="tl"><strong>Line 40 —</strong> Call the shared <code>request</code> helper, targeting the <span class="term" data-definition="A specific URL path on a server that accepts a particular kind of request — here, /ask for questions.">endpoint</span> <code>/ask</code> on the <span class="term" data-definition="A modern Python web framework for building APIs — the library that powers the backend server.">FastAPI</span> server.</div>
+            <div class="tl"><strong>Line 41 —</strong> Use the <span class="term" data-definition="An HTTP method that sends data to the server to create or trigger an action — the opposite of a read-only GET.">POST</span> method so the question travels in the request body, not the URL.</div>
+            <div class="tl"><strong>Line 42 —</strong> Turn the JavaScript object into a <span class="term" data-definition="JavaScript Object Notation — a text format for structured data that both the browser and Python can parse.">JSON</span> string so the backend can read question and user fields reliably.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Quiz -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Quick check: where does the question go first?</h3>
+      <p>Three scenarios. For each one, pick where the question lands <em>immediately after</em> the user clicks Ask — before grounding or BigQuery enter the story.</p>
+
+      <div class="quiz-container" id="quiz-module1">
+        <div class="quiz-question-block"
+             data-correct="b"
+             data-explanation-right="Correct — AskConsole runs askQuestion in api.ts, which POSTs JSON to the FastAPI /ask endpoint. That is the first hop off the browser."
+             data-explanation-wrong="The question leaves the browser first. Grounding and BigQuery come later, inside the Orchestrator pipeline.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 1</span>
+            <p>Maya types &ldquo;What was total revenue last month?&rdquo; in AskConsole and clicks Ask. The loading spinner appears. Where did her question go <em>first</em>?</p>
+          </div>
+          <p class="quiz-question">Pick the first destination:</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Straight to BigQuery for a SQL query
+            </button>
+            <button type="button" class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Over the network to FastAPI POST /ask
+            </button>
+            <button type="button" class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Into the grounding registry YAML file on disk
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block"
+             data-correct="a"
+             data-explanation-right="Exactly — api.ts line 40 targets /ask. That is the FastAPI route defined in main.py, not a database table."
+             data-explanation-wrong="The UI never talks to BigQuery directly. It always goes through the backend API first.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 2</span>
+            <p>DevTools shows a network request right after Ask is clicked. The path is <code>/ask</code> and the method is POST. Which file initiated that call?</p>
+          </div>
+          <p class="quiz-question">Which code path fired?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              askQuestion in data-answers-ui/lib/api.ts
+            </button>
+            <button type="button" class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              orchestrator.handle in the Python backend
+            </button>
+            <button type="button" class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              query_warehouse in tools/warehouse.py
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block"
+             data-correct="c"
+             data-explanation-right="Right — FastAPI receives the POST, then calls orchestrator.handle. The Orchestrator is step two on the server, not step one from the browser."
+             data-explanation-wrong="From the browser's view, the first server-side touch is the /ask endpoint. The Orchestrator runs after FastAPI accepts the request.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 3</span>
+            <p>A teammate says: &ldquo;When I click Ask, the Orchestrator runs immediately.&rdquo; Is that accurate for the <em>very first</em> hop?</p>
+          </div>
+          <p class="quiz-question">What happens first on the server?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Yes — Orchestrator runs before FastAPI sees anything
+            </button>
+            <button type="button" class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              No — BigQuery runs before anything else
+            </button>
+            <button type="button" class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              FastAPI /ask receives the POST, then calls the Orchestrator
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <button type="button" class="quiz-check-btn" onclick="checkQuiz('quiz-module1')">Check answers</button>
+        <button type="button" class="quiz-reset-btn" onclick="resetQuiz('quiz-module1')">Try again</button>
+      </div>
+    </div>
+
+  </div>
+</section>

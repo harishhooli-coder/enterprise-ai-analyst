@@ -1,0 +1,316 @@
+<section class="module" id="module-2" style="background: var(--color-bg-warm);">
+  <div class="module-content">
+
+    <header class="module-header animate-in">
+      <span class="module-number">02</span>
+      <h2 class="module-title">Meet the Cast</h2>
+      <p class="module-subtitle">Like a film crew — every role has one job, and nobody else does it for them.</p>
+    </header>
+
+    <!-- Screen 1: Intro -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">One question, five specialists</h3>
+      <p>When you clicked Ask in Module 1, your question did not magically become a number. It passed through a small cast of components — each with a single responsibility.</p>
+      <p>Think of a movie set: the director does not hold the camera, and the camera operator does not write the script. Same idea here. If you know who does what, reading the repo stops feeling like alphabet soup.</p>
+
+      <div class="callout callout-accent animate-in">
+        <span class="callout-icon">🎬</span>
+        <div class="callout-content">
+          <span class="callout-title">Separation of concerns</span>
+          <p>The UI never queries BigQuery. The warehouse never picks which metric to use. The <span class="term" data-definition="The central coordinator that runs the agent loop — classify intent, call tools, and return an answer or decline.">orchestrator</span> never renders HTML. Each piece stays in its lane so the system stays safe and auditable.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Five actors -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">The five roles on set</h3>
+      <p>Hover or tap each card. These names show up in file paths, logs, and error messages — worth memorizing like character names in a show.</p>
+
+      <div class="pattern-cards stagger-children">
+        <div class="pattern-card animate-in">
+          <div class="pattern-icon" style="background: var(--color-actor-1); color: white;">🖥</div>
+          <h4 class="pattern-title">AskConsole</h4>
+          <p class="pattern-desc">The Test Console UI in <code>data-answers-ui</code>. Collects your question and user info, shows the answer card, and never touches the database.</p>
+        </div>
+        <div class="pattern-card animate-in">
+          <div class="pattern-icon" style="background: var(--color-actor-2); color: white;">⚡</div>
+          <h4 class="pattern-title">main.py /ask</h4>
+          <p class="pattern-desc">The FastAPI front door. Receives POST /ask, stamps a tracking ID, delegates to the orchestrator, and records <span class="term" data-definition="Measurements about system behavior — request counts, latency, bytes scanned — used to monitor health and cost.">metrics</span>.</p>
+        </div>
+        <div class="pattern-card animate-in">
+          <div class="pattern-icon" style="background: var(--color-actor-3); color: white;">🎯</div>
+          <h4 class="pattern-title">Orchestrator</h4>
+          <p class="pattern-desc">The director in <code>app/loop/orchestrator.py</code>. Decides: answer, clarify, or decline. Calls grounding and warehouse tools through the policy gate.</p>
+        </div>
+        <div class="pattern-card animate-in">
+          <div class="pattern-icon" style="background: var(--color-actor-4); color: white;">📚</div>
+          <h4 class="pattern-title">GroundingService</h4>
+          <p class="pattern-desc">The librarian. Matches your words to a vetted metric or verified query in <code>registry.yaml</code> — never improvises SQL from scratch.</p>
+        </div>
+        <div class="pattern-card animate-in">
+          <div class="pattern-icon" style="background: var(--color-actor-5); color: white;">🏭</div>
+          <h4 class="pattern-title">Warehouse / BigQuery</h4>
+          <p class="pattern-desc">The read-only data runner in <code>tools/warehouse.py</code>. Executes parameterized templates against BigQuery with a byte cap — no writes, ever.</p>
+        </div>
+      </div>
+
+      <div class="icon-rows animate-in">
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-info-light); color: var(--color-info);">→</div>
+          <div>
+            <strong>Traffic direction</strong>
+            <p>Question flows UI → API → Orchestrator → Grounding → Warehouse → back up the chain.</p>
+          </div>
+        </div>
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-accent-light); color: var(--color-accent);">🔒</div>
+          <div>
+            <strong>Trust boundary</strong>
+            <p>Only Grounding picks <em>what</em> to run. Only Warehouse runs it. The UI never sees SQL.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Group chat + code translation -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Group chat: one question, full crew</h3>
+      <p>Press <strong>Play all</strong> to watch the cast talk through a real request — from click to grounded answer.</p>
+
+      <div class="chat-window animate-in" id="chat-module2">
+        <div class="chat-messages">
+          <div class="chat-message" data-sender="ui" style="display:none;">
+            <div class="chat-avatar" style="background: var(--color-actor-1);">UI</div>
+            <div class="chat-bubble">
+              <span class="chat-sender">AskConsole</span>
+              <p>POST /ask — question: &ldquo;What was total revenue last month?&rdquo; user: u1, regions: US, EU</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="api" style="display:none;">
+            <div class="chat-avatar" style="background: var(--color-actor-2);">API</div>
+            <div class="chat-bubble">
+              <span class="chat-sender">main.py /ask</span>
+              <p>Request received. Assigned tracking ID. Handing off to orchestrator.handle().</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="orch" style="display:none;">
+            <div class="chat-avatar" style="background: var(--color-actor-3);">OR</div>
+            <div class="chat-bubble">
+              <span class="chat-sender">Orchestrator</span>
+              <p>Need to map this question to a grounded metric. Calling GroundingService.retrieve().</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="ground" style="display:none;">
+            <div class="chat-avatar" style="background: var(--color-actor-4);">GR</div>
+            <div class="chat-bubble">
+              <span class="chat-sender">GroundingService</span>
+              <p>Match found: metric <code>total_revenue</code> with verified query template <code>revenue_by_month</code>. Confidence: high.</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="orch" style="display:none;">
+            <div class="chat-avatar" style="background: var(--color-actor-3);">OR</div>
+            <div class="chat-bubble">
+              <span class="chat-sender">Orchestrator</span>
+              <p>Policy gate: allow. Calling query_warehouse with parameterized template — read-only.</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="wh" style="display:none;">
+            <div class="chat-avatar" style="background: var(--color-actor-5);">BQ</div>
+            <div class="chat-bubble">
+              <span class="chat-sender">Warehouse</span>
+              <p>BigQuery job finished. 1 row returned. Bytes scanned within cap. Row filter applied for user u1.</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="api" style="display:none;">
+            <div class="chat-avatar" style="background: var(--color-actor-2);">API</div>
+            <div class="chat-bubble">
+              <span class="chat-sender">main.py /ask</span>
+              <p>Answer ready. Recording metrics and audit trail. Returning ApiResponse to client.</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="ui" style="display:none;">
+            <div class="chat-avatar" style="background: var(--color-actor-1);">UI</div>
+            <div class="chat-bubble">
+              <span class="chat-sender">AskConsole</span>
+              <p>Showing answer card to the user — status: answered, with provenance. No SQL visible.</p>
+            </div>
+          </div>
+        </div>
+        <div class="chat-typing" style="display:none;">
+          <div class="chat-avatar" id="chat-module2-typing-avatar" style="background: var(--color-text-muted);">…</div>
+          <div class="chat-typing-dots">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+        </div>
+        <div class="chat-controls">
+          <button type="button" class="btn chat-next-btn">Next message</button>
+          <button type="button" class="btn chat-all-btn">Play all</button>
+          <button type="button" class="btn chat-reset-btn">Reset</button>
+          <span class="chat-progress">0 / 8 messages</span>
+        </div>
+      </div>
+
+      <h3 class="screen-heading" style="margin-top: var(--space-12);">What main.py does at the front door</h3>
+      <p>When the chat reaches <strong>main.py /ask</strong>, this is the code that runs. Notice how little it does itself — mostly handoff and bookkeeping.</p>
+
+      <div class="translation-block animate-in">
+        <div class="translation-code">
+          <span class="translation-label">main.py</span>
+          <pre><code><span class="code-line"><span class="code-keyword">@app.post</span>(<span class="code-string">"/ask"</span>, response_model=ApiResponse[AnswerPayload])</span>
+<span class="code-line"><span class="code-keyword">async def</span> <span class="code-function">ask</span>(body: AskRequest) -&gt; ApiResponse[AnswerPayload]:</span>
+<span class="code-line">    request_id = <span class="code-function">str</span>(uuid.<span class="code-function">uuid4</span>())</span>
+<span class="code-line">    result = orchestrator.<span class="code-function">handle</span>(body, request_id)</span>
+<span class="code-line"></span>
+<span class="code-line">    records = get_audit_sink().<span class="code-function">records_for</span>(request_id)</span>
+<span class="code-line">    record = records[<span class="code-number">0</span>] <span class="code-keyword">if</span> records <span class="code-keyword">else</span> {}</span>
+<span class="code-line">    metrics_collector.<span class="code-function">record_request</span>(</span>
+<span class="code-line">        status=result.status,</span>
+<span class="code-line">        latency_ms=record.get(<span class="code-string">"latency_ms"</span>),</span>
+<span class="code-line">        bytes_scanned=record.get(<span class="code-string">"bytes_scanned"</span>),</span>
+<span class="code-line">        decline_reason=result.decline_reason,</span>
+<span class="code-line">    )</span>
+<span class="code-line">    <span class="code-keyword">return</span> result</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">Plain English</span>
+          <div class="translation-lines">
+            <div class="tl"><strong>Lines 43–44 —</strong> Register POST /ask as the question endpoint. FastAPI validates the incoming JSON into an AskRequest object before your function body runs — that validation layer is part of the framework’s <span class="term" data-definition="Software that sits between the network and your route handler — here, CORS middleware lets the browser UI talk to the API.">middleware</span> stack.</div>
+            <div class="tl"><strong>Line 45 —</strong> Mint a fresh <span class="term" data-definition="Universally Unique Identifier — a random ID string so every request can be traced in logs and audit records.">UUID</span> for this request. Every log line for this question shares that ID.</div>
+            <div class="tl"><strong>Line 46 —</strong> Pass the question to the orchestrator.handle — the API route itself does not pick metrics or run SQL.</div>
+            <div class="tl"><strong>Lines 48–55 —</strong> Pull audit details (latency, bytes scanned) and feed them into metrics_collector.record_request so operators can track cost and health.</div>
+            <div class="tl"><strong>Line 56 —</strong> Return the orchestrator result wrapped in the standard ApiResponse envelope back to AskConsole.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Drag-and-drop matching -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Match the crew to their job</h3>
+      <p>Drag each chip onto the role it belongs to. One chip per zone — think about who actually performs that task in the codebase.</p>
+
+      <div class="dnd-container animate-in" id="dnd-module2">
+        <div class="dnd-chips">
+          <span class="dnd-chip" draggable="true" data-answer="askconsole">Shows the answer card in the browser</span>
+          <span class="dnd-chip" draggable="true" data-answer="main">Assigns a UUID and records metrics</span>
+          <span class="dnd-chip" draggable="true" data-answer="orchestrator">Decides answer vs clarify vs decline</span>
+          <span class="dnd-chip" draggable="true" data-answer="grounding">Matches question to registry.yaml</span>
+          <span class="dnd-chip" draggable="true" data-answer="warehouse">Runs read-only BigQuery templates</span>
+        </div>
+        <div class="dnd-zones">
+          <div class="dnd-zone" data-correct="askconsole">
+            <div class="dnd-zone-label">AskConsole (UI)</div>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+          <div class="dnd-zone" data-correct="main">
+            <div class="dnd-zone-label">main.py /ask (API)</div>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+          <div class="dnd-zone" data-correct="orchestrator">
+            <div class="dnd-zone-label">Orchestrator</div>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+          <div class="dnd-zone" data-correct="grounding">
+            <div class="dnd-zone-label">GroundingService</div>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+          <div class="dnd-zone" data-correct="warehouse">
+            <div class="dnd-zone-label">Warehouse / BigQuery</div>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+        </div>
+        <button type="button" class="quiz-check-btn" onclick="checkDnD('dnd-module2')">Check matches</button>
+        <button type="button" class="quiz-reset-btn" onclick="resetDnD('dnd-module2')">Reset</button>
+      </div>
+
+      <h3 class="screen-heading" style="margin-top: var(--space-12);">Final check: who does what?</h3>
+
+      <div class="quiz-container" id="quiz-module2">
+        <div class="quiz-question-block"
+             data-correct="b"
+             data-explanation-right="GroundingService owns registry matching — that is its entire job. The orchestrator calls it; it does not run BigQuery itself."
+             data-explanation-wrong="BigQuery execution lives in the Warehouse tool. Grounding only finds the approved metric or query template.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 1</span>
+            <p>A product manager asks about revenue. The system must decide whether &ldquo;revenue&rdquo; maps to the <code>total_revenue</code> metric in the registry.</p>
+          </div>
+          <p class="quiz-question">Which component performs that match?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Warehouse / BigQuery
+            </button>
+            <button type="button" class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              GroundingService
+            </button>
+            <button type="button" class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              AskConsole
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block"
+             data-correct="a"
+             data-explanation-right="Correct — main.py creates the UUID before orchestrator.handle runs, so every audit record can cite the same request_id."
+             data-explanation-wrong="The UUID is created at the API layer in main.py, not inside Grounding or the Warehouse.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 2</span>
+            <p>Ops needs to trace one slow request across audit logs. Which component creates the shared tracking ID?</p>
+          </div>
+          <p class="quiz-question">Where is request_id born?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              main.py /ask (uuid.uuid4)
+            </button>
+            <button type="button" class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              GroundingService
+            </button>
+            <button type="button" class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              AskConsole in the browser
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block"
+             data-correct="c"
+             data-explanation-right="Exactly — the orchestrator runs the agent loop and calls tools. The API route is a thin receptionist."
+             data-explanation-wrong="main.py delegates quickly. The orchestrator is where classification, policy checks, and tool calls happen.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 3</span>
+            <p>A question is ambiguous — the system should ask a clarifying question instead of guessing a number.</p>
+          </div>
+          <p class="quiz-question">Who makes that decision?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Warehouse / BigQuery
+            </button>
+            <button type="button" class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              main.py /ask alone
+            </button>
+            <button type="button" class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Orchestrator
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <button type="button" class="quiz-check-btn" onclick="checkQuiz('quiz-module2')">Check answers</button>
+        <button type="button" class="quiz-reset-btn" onclick="resetQuiz('quiz-module2')">Try again</button>
+      </div>
+    </div>
+
+  </div>
+</section>

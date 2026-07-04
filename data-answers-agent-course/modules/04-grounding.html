@@ -1,0 +1,218 @@
+<section class="module" id="module-4" style="background: var(--color-bg-warm);">
+
+  <div class="module-content">
+
+    <header class="module-header animate-in">
+      <span class="module-number">04</span>
+      <h2 class="module-title">Grounding &amp; Warehouse</h2>
+      <p class="module-subtitle">Think of a professional kitchen: the chef never invents a dish from scratch. They pick an <strong>approved recipe card</strong>, gather the listed ingredients, and follow the steps exactly.</p>
+    </header>
+
+    <!-- Screen 1: Why grounding matters -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Why grounding matters</h3>
+      <p>The Data-Answers Agent serves <em>non-technical business users</em> who cannot verify SQL. The primary path is never free-form text-to-<span class="term" data-definition="Structured Query Language — how we read data from BigQuery. In this agent, only vetted templates run; user words never become raw SQL.">SQL</span>. Every answer must trace to a defined metric or verified query in <code>registry.yaml</code>.</p>
+
+      <div class="callout callout-warning animate-in">
+        <span class="callout-icon">⚠</span>
+        <div class="callout-content">
+          <span class="callout-title">Confidently wrong is worse than no answer</span>
+          <p>If a question does not map to the grounded set, the agent returns <code>declined</code> and routes to a human. It never improvises SQL to &quot;be helpful.&quot; A polished wrong number destroys more trust than an honest &quot;I cannot answer that yet.&quot;</p>
+        </div>
+      </div>
+
+      <div class="pattern-cards stagger-children">
+        <div class="pattern-card animate-in">
+          <div class="pattern-icon" style="background: var(--color-accent-light);">📋</div>
+          <h4 class="pattern-title">registry.yaml</h4>
+          <p class="pattern-desc">The recipe box — metric definitions, aliases, and <span class="term" data-definition="SQL templates with named placeholders (@month) and server-resolved fragments ({region_filter}). User text selects a template; it never becomes literal SQL.">parameterized</span> query templates loaded at startup.</p>
+        </div>
+        <div class="pattern-card animate-in">
+          <div class="pattern-icon" style="background: var(--color-info-light);">🔍</div>
+          <h4 class="pattern-title">grounding_service.py</h4>
+          <p class="pattern-desc">The sous chef — matches the user question to a recipe card, extracts parameters like month, and returns ambiguous or out-of-set when no safe match exists.</p>
+        </div>
+        <div class="pattern-card animate-in">
+          <div class="pattern-icon" style="background: var(--color-success-light);">🏭</div>
+          <h4 class="pattern-title">warehouse.py</h4>
+          <p class="pattern-desc">The kitchen line — executes only approved templates against <span class="term" data-definition="Google Cloud managed data warehouse. The skeleton reads from BigQuery only, with maximum_bytes_billed on every job.">BigQuery</span>, enforces read-only, injects the <span class="term" data-definition="A server-side WHERE fragment derived from the user principal (e.g. region IN (...)), not from the question text. Stand-in for BigQuery RLS in the skeleton.">row filter</span>, and bills a bounded scan.</p>
+        </div>
+      </div>
+
+      <p>Together these three modules implement the first non-negotiable: <strong>GROUNDING</strong>. The <span class="term" data-definition="A governed catalog of metrics and dimensions (dbt MetricFlow, Cube, or flat YAML in the skeleton). Defines what questions are answerable and how.">semantic layer</span> substrate may grow beyond flat YAML later — but the contract stays the same: vetted templates only.</p>
+    </div>
+
+    <!-- Screen 2: registry.yaml code translation -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Recipe card: total_revenue</h3>
+      <p>Each metric in the registry carries a template with placeholders. Notice <code>@month</code> is a bound parameter, while <code>{region_filter}</code> is resolved server-side from the user principal — never from the question.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">registry.yaml · lines 15–19</span>
+          <code>
+<span class="code-line">    <span class="code-property">template</span>: |</span>
+<span class="code-line">      <span class="code-keyword">SELECT</span> <span class="code-function">SUM</span>(amount) <span class="code-keyword">AS</span> total_revenue</span>
+<span class="code-line">      <span class="code-keyword">FROM</span> `{project}.{dataset}.sales`</span>
+<span class="code-line">      <span class="code-keyword">WHERE</span> month = @month</span>
+<span class="code-line">        <span class="code-keyword">AND</span> {region_filter}</span>
+          </code>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">In plain English</span>
+          <div class="translation-lines">
+            <div class="tl"><strong>Line 15</strong> — Start a multi-line SQL template block for the total_revenue metric.</div>
+            <div class="tl"><strong>Line 16</strong> — Sum the amount column; alias the result as total_revenue.</div>
+            <div class="tl"><strong>Line 17</strong> — Read from the sales table (project and dataset come from config, not user text).</div>
+            <div class="tl"><strong>Line 18</strong> — Filter to one calendar month via the @month parameter extracted from the question.</div>
+            <div class="tl"><strong>Line 19</strong> — AND the row filter injected by warehouse.py from allowed_regions — governance lives in the data layer.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3: warehouse.py guards -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Kitchen safety checks</h3>
+      <p>Before any template hits BigQuery, the warehouse tool verifies it is read-only and builds the region predicate from the execution context — structural enforcement, not prompt instructions.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">warehouse.py · lines 27–38</span>
+          <code>
+<span class="code-line"><span class="code-keyword">def</span> <span class="code-function">assert_readonly</span>(sql: <span class="code-keyword">str</span>) -&gt; <span class="code-keyword">None</span>:</span>
+<span class="code-line">    <span class="code-string">&quot;&quot;&quot;Reject templates containing DML/DDL verbs.&quot;&quot;&quot;</span></span>
+<span class="code-line">    <span class="code-keyword">if</span> WRITE_VERBS.<span class="code-function">search</span>(sql):</span>
+<span class="code-line">        <span class="code-keyword">raise</span> <span class="code-function">ReadOnlyViolationError</span>(<span class="code-string">&quot;Template contains write verb&quot;</span>)</span>
+<span class="code-line"></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">def</span> <span class="code-function">region_filter_clause</span>(regions: <span class="code-keyword">list</span>[<span class="code-keyword">str</span>]) -&gt; <span class="code-keyword">str</span>:</span>
+<span class="code-line">    <span class="code-string">&quot;&quot;&quot;Build a server-side SQL fragment stub for row-level region filtering.&quot;&quot;&quot;</span></span>
+<span class="code-line">    <span class="code-keyword">if</span> <span class="code-keyword">not</span> regions:</span>
+<span class="code-line">        <span class="code-keyword">return</span> <span class="code-string">&quot;1=0&quot;</span></span>
+<span class="code-line">    quoted = <span class="code-string">&quot;, &quot;</span>.<span class="code-function">join</span>(<span class="code-string">f&quot;&#39;{region.replace(chr(39), &#39;&#39;)}&#39;&quot;</span> <span class="code-keyword">for</span> region <span class="code-keyword">in</span> regions)</span>
+<span class="code-line">    <span class="code-keyword">return</span> <span class="code-string">f&quot;region IN ({quoted})&quot;</span></span>
+          </code>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">In plain English</span>
+          <div class="translation-lines">
+            <div class="tl"><strong>assert_readonly</strong> — Scan the template for INSERT, UPDATE, DELETE, DDL verbs. Mutation is structurally impossible.</div>
+            <div class="tl"><strong>Empty regions</strong> — Return <code>1=0</code> so the query returns no rows (safe deny), linking to policy no_allowed_regions upstream.</div>
+            <div class="tl"><strong>region_filter_clause</strong> — Build <code>region IN (&#39;EMEA&#39;, &#39;APAC&#39;)</code> from the principal allowed list. The user question never supplies this fragment.</div>
+            <div class="tl"><strong>TODO(harden)</strong> — Replace this WHERE stub with BigQuery RLS via WIF impersonation; the seam is already isolated here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Quiz -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Why user text never becomes SQL</h3>
+      <p>Test your understanding of the grounding contract — where user words are allowed to influence the system, and where they are forbidden.</p>
+
+      <div class="quiz-container" id="quiz-module4">
+
+        <div class="quiz-question-block scenario-block"
+             data-correct="alias"
+             data-explanation-right="The user question is matched against metric aliases in registry.yaml to SELECT which template runs. The question text never concatenates into the SQL string — only @month and server-side fragments are substituted."
+             data-explanation-wrong="User text does not become SQL clauses. It selects a pre-written template via alias matching and parameterizes named placeholders only.">
+
+          <div class="scenario-context">
+            <span class="scenario-label">Scenario A</span>
+            <p>A user asks &quot;How much did we sell in March 2025?&quot; The system answers with total revenue. What did the user question actually change in the SQL?</p>
+          </div>
+
+          <p class="quiz-question">How did user text affect execution?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="concat" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              The question was concatenated into a WHERE clause
+            </button>
+            <button type="button" class="quiz-option" data-value="alias" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Aliases matched total_revenue and @month was bound to 2025-03
+            </button>
+            <button type="button" class="quiz-option" data-value="freform" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Claude generated a custom SELECT statement from the question
+            </button>
+            <button type="button" class="quiz-option" data-value="region" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              The user specified their region in the question text
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block scenario-block"
+             data-correct="decline"
+             data-explanation-right="When grounding_service returns out_of_set, the orchestrator declines without calling query_warehouse. No template means no SQL — the agent routes to a human instead of improvising."
+             data-explanation-wrong="The warehouse never runs without a resolved metric template. Out-of-set questions stop at grounding_resolve with a declined response.">
+
+          <div class="scenario-context">
+            <span class="scenario-label">Scenario B</span>
+            <p>A user asks &quot;What is our employee churn rate by department?&quot; No metric in registry.yaml covers churn. What happens?</p>
+          </div>
+
+          <p class="quiz-question">What is the correct system behavior?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="improvise" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              The frontier model writes a best-effort SQL query
+            </button>
+            <button type="button" class="quiz-option" data-value="decline" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              grounding_resolve returns out_of_set and the API declines
+            </button>
+            <button type="button" class="quiz-option" data-value="partial" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Warehouse runs a generic SELECT * and filters in Python
+            </button>
+            <button type="button" class="quiz-option" data-value="clarify" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Always ask clarification even when no metric exists
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block scenario-block"
+             data-correct="principal"
+             data-explanation-right="region_filter is resolved_by: warehouse from the user principal allowed_regions — injected via region_filter_clause(), never parsed from natural language."
+             data-explanation-wrong="Row-level access comes from the user principal object threaded through the request, not from words in the business question.">
+
+          <div class="scenario-context">
+            <span class="scenario-label">Scenario C</span>
+            <p>In registry.yaml, the region_filter parameter has resolved_by: warehouse. Where does the actual region predicate come from?</p>
+          </div>
+
+          <p class="quiz-question">Who supplies {region_filter}?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="question" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Parsed from phrases like &quot;in EMEA&quot; in the user question
+            </button>
+            <button type="button" class="quiz-option" data-value="model" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Generated by the frontier model during reason_format
+            </button>
+            <button type="button" class="quiz-option" data-value="principal" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Built by region_filter_clause from user_principal.allowed_regions
+            </button>
+            <button type="button" class="quiz-option" data-value="prompt" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Instructed via a system prompt telling the model to filter regions
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <button type="button" class="quiz-check-btn" onclick="checkQuiz('quiz-module4')">Check answers</button>
+        <button type="button" class="quiz-reset-btn" onclick="resetQuiz('quiz-module4')">Try again</button>
+      </div>
+    </div>
+
+  </div>
+</section>

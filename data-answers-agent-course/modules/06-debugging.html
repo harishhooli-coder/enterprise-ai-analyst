@@ -1,0 +1,320 @@
+<section class="module" id="module-6" style="background: var(--color-bg-warm);">
+  <div class="module-content">
+
+    <header class="module-header animate-in">
+      <span class="module-number">06</span>
+      <h1 class="module-title">When Things Break</h1>
+      <p class="module-subtitle">A smoke detector — sometimes it beeps for toast, sometimes for fire. Learn which response means "ask again" vs "stop and route to a human."</p>
+    </header>
+
+    <!-- Screen 1: Metaphor + Three exit paths -->
+    <div class="screen">
+      <h2 class="screen-heading animate-in">Not every beep is a fire</h2>
+
+      <p class="animate-in">The agent returns one of four statuses in the <code>ApiResponse</code> envelope. Three are intentional design choices — only <code>error</code> means something unexpected broke. Knowing the difference saves you from "fixing" correct behaviour.</p>
+
+      <div class="flow-animation animate-in" style="padding: var(--space-6);">
+        <div class="flow-actors" style="margin-bottom: var(--space-4);">
+          <div class="flow-actor" id="flow-orchestrator">
+            <div class="flow-actor-icon" style="width: 72px; height: 56px; border-radius: var(--radius-md);">Orchestrator</div>
+            <span>handle(request)</span>
+          </div>
+        </div>
+        <div class="flow-steps" style="justify-content: center; margin: 0;">
+          <div class="flow-step">
+            <div class="flow-step-num" style="background: var(--color-success);">✓</div>
+            <p><strong>ok</strong><br>Match + allow + query → answer with <span class="term" data-definition="Where the answer came from — the metric id or verified-query id from the registry. Returned to the user as source, never raw SQL.">provenance</span></p>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-num" style="background: var(--color-info);">?</div>
+            <p><strong>needs_clarification</strong><br>Ambiguous metric — ask, don't guess</p>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-num" style="background: var(--color-error);">✕</div>
+            <p><strong>declined</strong><br>Out of set, policy deny, or flagged input</p>
+          </div>
+        </div>
+        <p style="text-align: center; font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-4); margin-bottom: 0;">Three intentional exits — all logged via <code>close_record()</code>. A fourth <code>error</code> path exists for infrastructure failures.</p>
+      </div>
+
+      <div class="callout callout-info animate-in">
+        <span class="callout-icon">🔔</span>
+        <div class="callout-content">
+          <strong class="callout-title">The smoke-detector metaphor</strong>
+          <p><strong>Clarification</strong> is toast — annoying but harmless; the system is working. <strong>Decline</strong> is a real alarm — the question is outside the grounded set or access is denied. <strong>Error</strong> is a faulty detector — step cap exceeded, token budget blown, or an internal failure. Check the audit log first, always.</p>
+        </div>
+      </div>
+
+      <div class="pattern-cards stagger-children animate-in">
+        <div class="pattern-card animate-in" style="border-top-color: var(--color-success);">
+          <h3 class="pattern-title">ok</h3>
+          <p class="pattern-desc">Grounding matched one metric → policy allowed → warehouse ran → answer formatted with <span class="term" data-definition="A 0–1 signal indicating how certain the system is in its interpretation. Legible to business users, not a model logprob.">confidence</span> (e.g. 0.85).</p>
+        </div>
+        <div class="pattern-card animate-in" style="border-top-color: var(--color-info);">
+          <h3 class="pattern-title">needs_clarification</h3>
+          <p class="pattern-desc">Grounding found multiple plausible metrics. The agent asks a specific question — it does <em>not</em> guess which metric you meant.</p>
+        </div>
+        <div class="pattern-card animate-in" style="border-top-color: var(--color-error);">
+          <h3 class="pattern-title">declined</h3>
+          <p class="pattern-desc">Out of registry, injection flagged, policy deny (empty regions), or classifier marks out_of_scope. Routed to human — no improvised SQL.</p>
+        </div>
+        <div class="pattern-card animate-in" style="border-top-color: var(--color-text-muted);">
+          <h3 class="pattern-title">error</h3>
+          <p class="pattern-desc">Infrastructure failure: step cap, token budget, read-only violation, identity misconfiguration. Audit record includes the error detail.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Scenarios from the UI -->
+    <div class="screen">
+      <h2 class="screen-heading animate-in">Four scenarios from the UI</h2>
+
+      <p class="animate-in">The Ask Console ships example scenarios that exercise each path. Use them to verify the agent behaves correctly — not to "jailbreak" it into answering everything.</p>
+
+      <div class="scenario-block animate-in">
+        <div class="scenario-context">
+          <span class="scenario-label">Clarification</span>
+          <p><strong>Question:</strong> "What was revenue last month?" &nbsp;|&nbsp; <strong>Regions:</strong> US, EU</p>
+          <p style="margin-top: var(--space-2); font-size: var(--text-sm);">Both <code>total_revenue</code> and <code>net_revenue</code> match — grounding returns <code>ambiguous</code>. UI shows amber "Needs clarification" badge.</p>
+        </div>
+      </div>
+
+      <div class="scenario-block animate-in">
+        <div class="scenario-context">
+          <span class="scenario-label">Out of scope</span>
+          <p><strong>Question:</strong> "How many unicorns do we have?"</p>
+          <p style="margin-top: var(--space-2); font-size: var(--text-sm);">No metric in registry matches → <code>out_of_set</code> → <code>declined</code> with "Out of scope, routed to human."</p>
+        </div>
+      </div>
+
+      <div class="scenario-block animate-in">
+        <div class="scenario-context">
+          <span class="scenario-label">Policy deny</span>
+          <p><strong>Question:</strong> "What was total revenue last month?" &nbsp;|&nbsp; <strong>Regions:</strong> <em>(empty)</em></p>
+          <p style="margin-top: var(--space-2); font-size: var(--text-sm);">Grounding succeeds but <code>authorize()</code> denies — <code>no_allowed_regions</code>. No warehouse query runs despite a valid metric.</p>
+        </div>
+      </div>
+
+      <div class="scenario-block animate-in">
+        <div class="scenario-context" style="background: var(--color-success-light); border-color: var(--color-success);">
+          <span class="scenario-label" style="color: var(--color-success);">Happy path</span>
+          <p><strong>Question:</strong> "What was total revenue last month?" &nbsp;|&nbsp; <strong>Regions:</strong> US, EU</p>
+          <p style="margin-top: var(--space-2); font-size: var(--text-sm);">Single metric match → policy allow → parameterized template executes → answer with source <code>total_revenue</code> and confidence 0.85.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Group chat walkthrough -->
+    <div class="screen">
+      <h2 class="screen-heading animate-in">Inside an ambiguous question</h2>
+
+      <p class="animate-in">Step through the conversation between the user, <code>GroundingService</code>, and the <code>Orchestrator</code> when revenue vs net revenue triggers <span class="term" data-definition="The agent returns needs_clarification with a specific follow-up question instead of guessing which metric the user meant.">clarification</span>.</p>
+
+      <div class="chat-window animate-in" id="chat-module6">
+        <div class="chat-messages">
+          <div class="chat-message" data-sender="user" style="display: none;">
+            <div class="chat-avatar" style="background: var(--color-actor-1);">U</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-1);">User</span>
+              <p>What was revenue last month?</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="orchestrator" style="display: none;">
+            <div class="chat-avatar" style="background: var(--color-actor-3);">O</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-3);">Orchestrator</span>
+              <p>scan_input → clean. classify → data_question. Calling grounding_service.resolve()…</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="grounding" style="display: none;">
+            <div class="chat-avatar" style="background: var(--color-actor-2);">G</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-2);">GroundingService</span>
+              <p>Retrieval found two candidates: <code>total_revenue</code> (score 0.82) and <code>net_revenue</code> (score 0.79). Status: <strong>ambiguous</strong>.</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="orchestrator" style="display: none;">
+            <div class="chat-avatar" style="background: var(--color-actor-3);">O</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-3);">Orchestrator</span>
+              <p>Grounding ambiguous → no policy check, no warehouse call. Returning needs_clarification. Audit closed with status <code>needs_clarification</code>.</p>
+            </div>
+          </div>
+          <div class="chat-message" data-sender="orchestrator" style="display: none;">
+            <div class="chat-avatar" style="background: var(--color-actor-3);">O</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-3);">Orchestrator → User</span>
+              <p>"Did you mean total revenue (gross) or net revenue (after returns and discounts)?"</p>
+            </div>
+          </div>
+        </div>
+        <div class="chat-typing" style="display: none;">
+          <div class="chat-avatar" id="chat-module6-typing-avatar" style="background: var(--color-text-muted);">…</div>
+          <div class="chat-typing-dots">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+        </div>
+        <div class="chat-controls">
+          <button class="btn btn-primary chat-next-btn">Next message</button>
+          <button class="btn chat-all-btn">Play all</button>
+          <button class="btn chat-reset-btn">Reset</button>
+          <span class="chat-progress">0 / 5 messages</span>
+        </div>
+      </div>
+
+      <div class="bug-challenge animate-in">
+        <h3>Spot the bug — which line violates non-negotiables?</h3>
+        <p style="font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-4);">A junior dev patched the orchestrator to "be more helpful." Click the line that breaks grounding.</p>
+        <div class="bug-code">
+          <div class="bug-line" onclick="checkBugLine(this, false)" data-hint="Logging is fine — audit should capture everything.">
+            <span class="line-num">94</span>
+            <code>if grounding.status == "ambiguous":</code>
+          </div>
+          <div class="bug-line" onclick="checkBugLine(this, true)" data-explanation="When grounding is ambiguous, the agent must return needs_clarification — never pick the highest-scoring metric and run SQL anyway. Guessing violates the grounding non-negotiable.">
+            <span class="line-num">95</span>
+            <code>grounding.metric_id = grounding.candidates[0]  # pick best match</code>
+          </div>
+          <div class="bug-line" onclick="checkBugLine(this, false)" data-hint="Returning clarification_response is the correct path for ambiguous grounding.">
+            <span class="line-num">96</span>
+            <code>return clarification_response(grounding.clarify_prompt, request_id)</code>
+          </div>
+          <div class="bug-line" onclick="checkBugLine(this, false)" data-hint="Closing the audit record on every path is required — not a bug.">
+            <span class="line-num">97</span>
+            <code>close_record(request_id, "needs_clarification", latency_ms=…)</code>
+          </div>
+        </div>
+        <div class="bug-feedback"></div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Debugging quiz + non-negotiables -->
+    <div class="screen">
+      <h2 class="screen-heading animate-in">Debugging with AI — what do you tell it?</h2>
+
+      <p class="animate-in">When pairing with an AI coding assistant on this codebase, anchor it to the five non-negotiables. Wrong instructions produce confidently wrong architecture.</p>
+
+      <div class="quiz-container animate-in" id="quiz-module6">
+
+        <div class="quiz-question-block" data-correct="c"
+             data-explanation-right="Grounding means every answer traces to a vetted metric or verified query. Tell the AI: never improvise SQL — add metrics to registry.yaml or return declined."
+             data-explanation-wrong="Letting the model generate SQL from user text violates grounding. The fix is registry expansion or decline — not smarter SQL generation.">
+          <p class="quiz-question">1. The agent keeps guessing SQL for out-of-scope questions. What do you tell the AI assistant?</p>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              "Improve the classifier prompt so it generates better SQL"
+            </button>
+            <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              "Add a post-filter that hides wrong answers from the UI"
+            </button>
+            <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              "Never improvise SQL — out_of_set must return declined; add metrics to registry.yaml"
+            </button>
+            <button class="quiz-option" data-value="d" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              "Let the frontier model write parameterized queries on the fly"
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block" data-correct="b"
+             data-explanation-right="Empty allowed_regions → authorize() denies with no_allowed_regions. The UI scenario 'Policy deny' tests exactly this. Fix the principal data, not the prompt."
+             data-explanation-wrong="Access control is structural — in gate.py and eventually BigQuery RLS — not in model prompts.">
+          <p class="quiz-question">2. User u2 with empty regions gets denied on a valid revenue question. First debugging step?</p>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Add "respect user permissions" to the system prompt
+            </button>
+            <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Check principal.allowed_regions and gate.py authorize() — expected deny
+            </button>
+            <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Bypass policy gate in dev so testing is easier
+            </button>
+            <button class="quiz-option" data-value="d" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Increase the agent step cap so it retries with different SQL
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block" data-correct="a"
+             data-explanation-right="needs_clarification is correct behaviour when total_revenue and net_revenue both match. The user should re-ask with 'total revenue' or 'net revenue' — not file a bug."
+             data-explanation-wrong="Ambiguous grounding must not auto-resolve. Clarification protects business users from silently wrong metric choices.">
+          <p class="quiz-question">3. "What was revenue last month?" returns needs_clarification. Is this a bug?</p>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              No — ambiguous metrics must clarify, not guess
+            </button>
+            <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Yes — the retriever should always pick the highest score
+            </button>
+            <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Yes — the frontier model should disambiguate silently
+            </button>
+            <button class="quiz-option" data-value="d" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Yes — add both metrics together and return the sum
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block" data-correct="d"
+             data-explanation-right="Every request must have a reconstructable audit record. If open_record ran but close_record didn't, that's the bug — not missing SQL in the response."
+             data-explanation-wrong="Business users never see SQL. Check audit.open / audit.close in the logs — a request with no audit trail is always a bug.">
+          <p class="quiz-question">4. A declined request returns no answer text. The user says "it's broken." What do you check first?</p>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Whether the model had enough tokens to generate SQL
+            </button>
+            <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Whether redact_output removed too much from the answer
+            </button>
+            <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Whether the UI should show internal schema for debugging
+            </button>
+            <button class="quiz-option" data-value="d" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              Audit log: open_record → policy/grounding steps → close_record with status declined
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <button class="quiz-check-btn" onclick="checkQuiz('quiz-module6')">Check answers</button>
+        <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module6')">Reset</button>
+      </div>
+
+      <div class="callout callout-accent animate-in">
+        <span class="callout-icon">🛡️</span>
+        <div class="callout-content">
+          <strong class="callout-title">The five non-negotiables — your debugging compass</strong>
+          <p>
+            <strong>1. Grounding</strong> — vetted metrics only; clarify or <span class="term" data-definition="The agent refuses to answer when the question is outside the grounded set, returning declined with reason routed to human.">decline</span>, never guess.<br>
+            <strong>2. Governance</strong> — access control in the data layer, never in prompts.<br>
+            <strong>3. Identity</strong> — principal flows end-to-end; agent acts as the user.<br>
+            <strong>4. Read-only</strong> — mutation structurally impossible; no DML/DDL anywhere.<br>
+            <strong>5. Auditable</strong> — every request reconstructable: who, what, when, allow/deny, bytes, latency.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>

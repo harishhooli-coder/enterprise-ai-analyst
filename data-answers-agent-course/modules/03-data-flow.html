@@ -1,0 +1,320 @@
+<section class="module" id="module-3" style="background: var(--color-bg);">
+
+  <div class="module-content">
+
+    <header class="module-header animate-in">
+      <span class="module-number">03</span>
+      <h2 class="module-title">Follow the Data</h2>
+      <p class="module-subtitle">Trace one question through <code>orchestrator.handle</code> — a relay race where the <strong>request_id</strong> baton passes from runner to runner until the answer crosses the finish line.</p>
+    </header>
+
+    <!-- Screen 1: Relay race metaphor -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">The relay race</h3>
+      <p>When a business user asks a question, the API hands off a single baton: <code>request_id</code>. Every actor in the pipeline touches that same ID — logging it in the <span class="term" data-definition="An append-only record of who asked, what ran, policy decisions, bytes scanned, and the final outcome. Nothing happens off the books.">audit</span> trail, checking guardrails, resolving grounding, and closing the loop. No runner improvises; each does one job and passes the baton forward.</p>
+
+      <div class="icon-rows stagger-children">
+        <div class="icon-row animate-in">
+          <div class="icon-circle" style="background: var(--color-accent-light); color: var(--color-accent);">🏃</div>
+          <div>
+            <strong>Runner 1 — Audit opens the race</strong>
+            <p><code>open_record(request_id, …)</code> stamps who asked and the raw question before anything else runs.</p>
+          </div>
+        </div>
+        <div class="icon-row animate-in">
+          <div class="icon-circle" style="background: var(--color-info-light); color: var(--color-info);">🏃</div>
+          <div>
+            <strong>Runners 2–7 — Guard, classify, ground, authorize, query, format</strong>
+            <p>Each step calls <code>step(name)</code>, incrementing a counter guarded by the <span class="term" data-definition="A hard ceiling on orchestrator steps per request. Exceeding it raises StepCapExceededError — the loop cannot run forever.">step cap</span>.</p>
+          </div>
+        </div>
+        <div class="icon-row animate-in">
+          <div class="icon-circle" style="background: var(--color-success-light); color: var(--color-success);">🏁</div>
+          <div>
+            <strong>Runner 8 — Audit closes the race</strong>
+            <p><code>close_record(request_id, status, …)</code> seals latency, outcome, and any decline reason — success or refusal.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Interactive flow animation -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Watch the baton move</h3>
+      <p>Click <strong>Next Step</strong> to follow the packet (the request context) through seven actors. Each highlight matches a real <code>step()</code> name in <code>orchestrator.py</code>.</p>
+
+      <div class="flow-animation" data-steps='[
+        {"label":"Step 1 — POST /ask arrives. Audit receives the request_id baton and calls open_record.","highlight":"flow-actor-1"},
+        {"label":"Step 2 — audit_open complete. Baton passes to Router for scan_input (guardrails scan).","highlight":"flow-actor-2","packet":true,"from":"actor-1","to":"actor-2"},
+        {"label":"Step 3 — classify: Router asks the cheap model — is this in scope? Which intent?","highlight":"flow-actor-2","packet":true,"from":"actor-2","to":"actor-3"},
+        {"label":"Step 4 — grounding_resolve: Grounding matches the user question to a verified metric template.","highlight":"flow-actor-3","packet":true,"from":"actor-3","to":"actor-4"},
+        {"label":"Step 5 — policy_authorize: Policy checks whether the principal may access this metric.","highlight":"flow-actor-4","packet":true,"from":"actor-4","to":"actor-5"},
+        {"label":"Step 6 — identity_mint: Identity broker mints an execution context for the calling user.","highlight":"flow-actor-5","packet":true,"from":"actor-5","to":"actor-6"},
+        {"label":"Step 7 — warehouse_query: Warehouse runs the parameterized template against BigQuery (read-only).","highlight":"flow-actor-6","packet":true,"from":"actor-6","to":"actor-7"},
+        {"label":"Step 8 — reason_format: AI Formatter turns row values into plain-language business text.","highlight":"flow-actor-7","packet":true,"from":"actor-7","to":"actor-7"},
+        {"label":"Step 9 — redact_output: Guardrails strip PII and schema leaks from the answer payload.","highlight":"flow-actor-7","packet":true,"from":"actor-7","to":"actor-1"},
+        {"label":"Step 10 — audit_close: Audit seals the record with status, latency, and bytes scanned.","highlight":"flow-actor-1","packet":true,"from":"actor-1","to":"actor-1"}
+      ]'>
+
+        <div class="flow-actors">
+          <div class="flow-actor" id="flow-actor-1">
+            <div class="flow-actor-icon" style="border-color: var(--color-actor-1); color: var(--color-actor-1);">Au</div>
+            <span>Audit</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-2">
+            <div class="flow-actor-icon" style="border-color: var(--color-actor-2); color: var(--color-actor-2);">Ro</div>
+            <span>Router</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-3">
+            <div class="flow-actor-icon" style="border-color: var(--color-actor-3); color: var(--color-actor-3);">Gr</div>
+            <span>Grounding</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-4">
+            <div class="flow-actor-icon" style="border-color: var(--color-actor-4); color: var(--color-actor-4);">Po</div>
+            <span>Policy</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-5">
+            <div class="flow-actor-icon" style="border-color: var(--color-actor-5); color: var(--color-actor-5);">Id</div>
+            <span>Identity</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-6">
+            <div class="flow-actor-icon" style="border-color: var(--color-accent); color: var(--color-accent);">Wh</div>
+            <span>Warehouse</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-7">
+            <div class="flow-actor-icon" style="border-color: var(--color-actor-3); color: var(--color-actor-3);">AI</div>
+            <span>AI Formatter</span>
+          </div>
+        </div>
+
+        <div class="flow-packet"></div>
+        <div class="flow-step-label">Click &quot;Next Step&quot; to begin</div>
+
+        <div class="flow-controls">
+          <button type="button" class="btn btn-primary flow-next-btn">Next Step</button>
+          <button type="button" class="btn flow-reset-btn">Reset</button>
+          <span class="flow-progress">Step 0 / 10</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Code translation -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Where the race starts in code</h3>
+      <p>The orchestrator opens the audit record before guardrails run — so even a declined request leaves a reconstructable trail.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">orchestrator.py</span>
+          <code>
+<span class="code-line">        <span class="code-keyword">try</span>:</span>
+<span class="code-line">            <span class="code-comment"># 1. audit-open</span></span>
+<span class="code-line">            <span class="code-function">open_record</span>(</span>
+<span class="code-line">                request_id,</span>
+<span class="code-line">                request.user_principal.<span class="code-function">model_dump</span>(),</span>
+<span class="code-line">                request.question,</span>
+<span class="code-line">            )</span>
+<span class="code-line">            <span class="code-function">step</span>(<span class="code-string">&quot;audit_open&quot;</span>)</span>
+          </code>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">In plain English</span>
+          <div class="translation-lines">
+            <div class="tl"><strong>Line 51</strong> — Enter a try block so any failure still closes the audit record.</div>
+            <div class="tl"><strong>Lines 53–57</strong> — Log request_id, the user principal, and the exact question. This is the baton handoff to Audit.</div>
+            <div class="tl"><strong>Line 58</strong> — Count step 1 toward the step cap. Next up: scan_input checks the question for injection or secrets.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Nine-step loop + bounded loop callout -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">The nine-step loop</h3>
+      <p>Every happy-path request walks these steps in order. Any step can short-circuit to declined, needs_clarification, or error — but the baton always returns to Audit for <code>close_record</code>.</p>
+
+      <div class="step-cards stagger-children">
+        <div class="step-card animate-in">
+          <span class="step-num">1</span>
+          <div class="step-body">
+            <strong>audit_open</strong>
+            <p>Open the audit record with principal and question.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">2</span>
+          <div class="step-body">
+            <strong>scan_input</strong>
+            <p>Guardrails scan for injection attempts and leaked secrets.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">3</span>
+          <div class="step-body">
+            <strong>classify</strong>
+            <p>Router <span class="term" data-definition="The first model tier decides intent: in-scope metric question, out of scope, injection, or ambiguous phrasing.">classifies</span> intent — in scope, out of scope, or suspicious.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">4</span>
+          <div class="step-body">
+            <strong>grounding_resolve</strong>
+            <p>Match the question to a verified metric template from the registry.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">5</span>
+          <div class="step-body">
+            <strong>policy_authorize</strong>
+            <p>Policy gate allows or denies access based on the user principal — not the prompt.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">6</span>
+          <div class="step-body">
+            <strong>identity_mint</strong>
+            <p>Mint an execution context so the warehouse runs as the calling user.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">7</span>
+          <div class="step-body">
+            <strong>warehouse_query</strong>
+            <p>Execute the parameterized template with maximum_bytes_billed enforced.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">8</span>
+          <div class="step-body">
+            <strong>reason_format</strong>
+            <p>Frontier model formats row values into business language — never SQL.</p>
+          </div>
+        </div>
+        <div class="step-card animate-in">
+          <span class="step-num">9</span>
+          <div class="step-body">
+            <strong>redact_output → audit_close</strong>
+            <p>Strip sensitive leaks, then seal the audit record with final status and latency.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout-warning animate-in">
+        <span class="callout-icon">⏱</span>
+        <div class="callout-content">
+          <span class="callout-title">Bounded loops — by design</span>
+          <p>Two hard ceilings protect cost and runaway agents: the <strong>step cap</strong> (each <code>step()</code> call increments a counter; exceeding it raises <code>StepCapExceededError</code>) and the <strong><span class="term" data-definition="A ceiling on total model tokens consumed per request. Checked after classify, warehouse_query, and reason_format.">token budget</span></strong>. An unbounded agent loop is an unbounded bill — the skeleton forbids both.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 5: Quiz -->
+    <div class="screen animate-in">
+      <h3 class="screen-heading">Debug the loop</h3>
+      <p>When something goes wrong, the decline reason tells you which runner dropped the baton. Match the symptom to the step.</p>
+
+      <div class="quiz-container" id="quiz-module3">
+
+        <div class="quiz-question-block scenario-block"
+             data-correct="policy"
+             data-explanation-right="no_allowed_regions is returned by authorize() in gate.py when principal.allowed_regions is empty. That happens at step 5 — policy_authorize — before identity or warehouse ever run."
+             data-explanation-wrong="Trace the reason string: no_allowed_regions comes from the policy gate, not from grounding retrieval or SQL execution.">
+
+          <div class="scenario-context">
+            <span class="scenario-label">Scenario A</span>
+            <p>A user asks &quot;What was total revenue last month?&quot; The API returns <code>declined</code> with reason containing <code>no_allowed_regions</code>. Which step stopped the request?</p>
+          </div>
+
+          <p class="quiz-question">Where in the loop did this decline happen?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="grounding" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              grounding_resolve — no matching metric
+            </button>
+            <button type="button" class="quiz-option" data-value="policy" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              policy_authorize — principal has no allowed regions
+            </button>
+            <button type="button" class="quiz-option" data-value="warehouse" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              warehouse_query — BigQuery job failed
+            </button>
+            <button type="button" class="quiz-option" data-value="classify" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              classify — intent marked out_of_scope
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block scenario-block"
+             data-correct="scan"
+             data-explanation-right="scan_input runs guardrails before classify. If scan.flagged is true, the orchestrator declines immediately and never reaches grounding or policy."
+             data-explanation-wrong="Injection or secret detection happens at scan_input (step 2), not during model classification or warehouse execution.">
+
+          <div class="scenario-context">
+            <span class="scenario-label">Scenario B</span>
+            <p>Audit shows <code>step: scan_input</code> with <code>flagged: true</code>, then <code>status: declined</code>. No grounding or policy steps appear. What ran last before the decline?</p>
+          </div>
+
+          <p class="quiz-question">Which step produced the decline?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="scan" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              scan_input — input guardrails flagged the question
+            </button>
+            <button type="button" class="quiz-option" data-value="reason" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              reason_format — model refused to answer
+            </button>
+            <button type="button" class="quiz-option" data-value="identity" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              identity_mint — broker could not mint credentials
+            </button>
+            <button type="button" class="quiz-option" data-value="redact" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              redact_output — PII redaction blocked the answer
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block scenario-block"
+             data-correct="cap"
+             data-explanation-right="StepCapExceededError is raised inside step() when steps exceed agent_step_cap. The orchestrator catches it, closes the audit record with status error, and returns an error response."
+             data-explanation-wrong="Token budget violations use a different check (_check_token_budget). Step cap failures happen inside the step() helper itself.">
+
+          <div class="scenario-context">
+            <span class="scenario-label">Scenario C</span>
+            <p>Audit closes with <code>status: error</code> and message &quot;Agent step cap exceeded&quot;. Which guardrail fired?</p>
+          </div>
+
+          <p class="quiz-question">What stopped the loop?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-option" data-value="cap" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              step cap — too many step() calls in one request
+            </button>
+            <button type="button" class="quiz-option" data-value="bytes" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              maximum_bytes_billed — query scan too large
+            </button>
+            <button type="button" class="quiz-option" data-value="grounding" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              grounding_resolve — ambiguous metric match
+            </button>
+            <button type="button" class="quiz-option" data-value="readonly" onclick="selectOption(this)">
+              <span class="quiz-option-radio"></span>
+              assert_readonly — template contained a write verb
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <button type="button" class="quiz-check-btn" onclick="checkQuiz('quiz-module3')">Check answers</button>
+        <button type="button" class="quiz-reset-btn" onclick="resetQuiz('quiz-module3')">Try again</button>
+      </div>
+    </div>
+
+  </div>
+</section>
