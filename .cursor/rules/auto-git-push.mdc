@@ -1,5 +1,5 @@
 ---
-description: Auto-commit and push to GitHub after logical task completion and on 15-minute sync ticks
+description: Auto-commit and push to GitHub after logical task completion and on 30-minute sync ticks
 alwaysApply: true
 ---
 
@@ -16,7 +16,7 @@ When a task reaches a natural stopping point (feature done, tests green, bug fix
 3. Never commit `.env`, credentials, or `*.egg-info/` / `.pytest_cache/`.
 4. Push to `origin master` unless the user specifies another branch.
 
-## On 15-minute sync ticks
+## On 30-minute sync ticks
 
 When woken by `AGENT_LOOP_TICK_git-sync`:
 
