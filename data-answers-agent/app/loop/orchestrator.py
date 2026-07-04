@@ -7,6 +7,7 @@ from app.audit.audit import (
     close_record,
     open_record,
     record_bytes,
+    record_executing_identity,
     record_grounding,
     record_grounding_by_status,
     record_policy,
@@ -21,6 +22,7 @@ from app.envelope import (
     ok_response,
 )
 from app.grounding.grounding_service import grounding_service
+from app.identity.broker import IdentityConfigurationError, get_identity_broker
 from app.loop.model_router import router
 from app.models import AnswerPayload, AskRequest
 from app.policy.gate import authorize
@@ -124,11 +126,21 @@ class Orchestrator:
 
             self._check_token_budget(request_id)
 
-            # 6. warehouse query
+            # 6. mint identity + warehouse query
+            execution_context = get_identity_broker().mint(request.user_principal)
+            record_executing_identity(request_id, execution_context)
+            step(
+                "identity_mint",
+                {
+                    "executing_identity_id": execution_context.executing_identity_id,
+                    "uses_warehouse_rls": execution_context.uses_warehouse_rls,
+                },
+            )
+
             result = query_warehouse(
                 grounding.template,
                 grounding.resolved_params or {},
-                request.user_principal,
+                execution_context,
                 metric_id=grounding.metric_id,
             )
             step("warehouse_query", {"rows": len(result.rows), "template_id": result.template_id})
@@ -185,6 +197,15 @@ class Orchestrator:
             return error_response(str(exc), request_id)
 
         except ReadOnlyViolationError as exc:
+            close_record(
+                request_id,
+                "error",
+                latency_ms=_elapsed_ms(start),
+                extra={"error": str(exc)},
+            )
+            return error_response(str(exc), request_id)
+
+        except IdentityConfigurationError as exc:
             close_record(
                 request_id,
                 "error",

@@ -8,6 +8,16 @@ from pydantic import BaseModel, Field
 class UserPrincipal(BaseModel):
     user_id: str
     allowed_regions: list[str]
+    email: str | None = None
+
+
+class ExecutionContext(BaseModel):
+    """Who asked vs who executes the warehouse query."""
+
+    requesting_principal: UserPrincipal
+    executing_identity_id: str
+    executing_identity_type: Literal["stub_dev", "impersonated_sa", "federated_user"]
+    uses_warehouse_rls: bool
 
 
 class AskRequest(BaseModel):
@@ -72,3 +82,4 @@ class WarehouseResult(BaseModel):
     rows: list[dict]
     bytes_scanned: int
     template_id: str
+    executing_identity_id: str | None = None

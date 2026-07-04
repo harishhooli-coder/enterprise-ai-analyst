@@ -1,5 +1,6 @@
 import pytest
 
+from app.identity.stub_broker import StubIdentityBroker
 from app.models import UserPrincipal
 from app.tools.warehouse import (
     ReadOnlyViolationError,
@@ -25,7 +26,7 @@ def test_rejects_insert_template():
 def test_bytes_cap_set_on_query():
     captured: dict = {}
 
-    def fake_bq(sql, params, principal, max_bytes):
+    def fake_bq(sql, params, execution_context, max_bytes):
         captured["max_bytes"] = max_bytes
         return [{"total_revenue": 100.0}]
 
@@ -35,8 +36,8 @@ def test_bytes_cap_set_on_query():
             "SELECT SUM(amount) AS total_revenue "
             "FROM `proj.ds.sales` WHERE month = @month AND {region_filter}"
         )
-        principal = UserPrincipal(user_id="u1", allowed_regions=["US"])
-        result = query_warehouse(template, {"month": "2025-06"}, principal, metric_id="total_revenue")
+        ctx = StubIdentityBroker().mint(UserPrincipal(user_id="u1", allowed_regions=["US"]))
+        result = query_warehouse(template, {"month": "2025-06"}, ctx, metric_id="total_revenue")
         assert result.rows
         assert captured["max_bytes"] == get_last_bytes_billed()
         assert captured["max_bytes"] > 0
@@ -47,15 +48,15 @@ def test_bytes_cap_set_on_query():
 def test_region_filter_applied_in_query():
     captured: dict = {}
 
-    def fake_bq(sql, params, principal, max_bytes):
+    def fake_bq(sql, params, execution_context, max_bytes):
         captured["sql"] = sql
         return [{"total_revenue": 100.0}]
 
     set_bq_client_factory(fake_bq)
     try:
         template = "SELECT 1 FROM t WHERE {region_filter}"
-        principal = UserPrincipal(user_id="u1", allowed_regions=["US", "EU"])
-        query_warehouse(template, {}, principal)
+        ctx = StubIdentityBroker().mint(UserPrincipal(user_id="u1", allowed_regions=["US", "EU"]))
+        query_warehouse(template, {}, ctx)
         assert "region IN ('US', 'EU')" in captured["sql"]
     finally:
         set_bq_client_factory(None)

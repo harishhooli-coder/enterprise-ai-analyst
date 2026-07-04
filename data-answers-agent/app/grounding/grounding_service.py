@@ -10,6 +10,7 @@ from typing import Any
 import yaml
 
 from app.config import get_settings
+from app.grounding.retrieval import KeywordRetriever, MetricRetriever, select_retriever
 from app.models import GroundingResult
 
 _REGISTRY_PATH = Path(__file__).parent / "registry.yaml"
@@ -39,27 +40,9 @@ def _load_registry() -> list[dict[str, Any]]:
     return payload.get("metrics", [])
 
 
-def _normalize_question(question: str) -> str:
-    return re.sub(r"\s+", " ", question.strip().lower())
-
-
-def _match_terms(metric: dict[str, Any]) -> list[str]:
-    terms = [metric.get("name", ""), metric.get("id", "").replace("_", " ")]
-    terms.extend(metric.get("aliases", []))
-    return [term.strip().lower() for term in terms if term.strip()]
-
-
-def _best_alias_match_length(normalized_question: str, metric: dict[str, Any]) -> int:
-    best = 0
-    for term in _match_terms(metric):
-        if term in normalized_question:
-            best = max(best, len(term))
-    return best
-
-
 def extract_month(question: str) -> str | None:
     """Extract a calendar month (YYYY-MM) from natural-language text."""
-    normalized = _normalize_question(question)
+    normalized = re.sub(r"\s+", " ", question.strip().lower())
 
     if re.search(r"\blast\s+month\b", normalized):
         return _shift_month(date.today(), -1)
@@ -125,34 +108,118 @@ def _format_template(template: str) -> str:
     )
 
 
-class GroundingService:
-    """Simple keyword/alias matcher over the flat metric registry."""
+def _metric_by_id(registry: list[dict[str, Any]], metric_id: str) -> dict[str, Any] | None:
+    return next((item for item in registry if item["id"] == metric_id), None)
 
-    def __init__(self) -> None:
-        self._registry = _load_registry()
+
+def _keyword_tied_candidates(
+    keyword_ranked: list,
+    registry: list[dict[str, Any]],
+) -> list[str] | None:
+    if len(keyword_ranked) < 2 or keyword_ranked[0].score != keyword_ranked[1].score:
+        return None
+    top_metrics = [
+        _metric_by_id(registry, item.metric_id) for item in keyword_ranked[:2]
+    ]
+    groups = {
+        (metric.get("ambiguity_group") or metric["id"])
+        for metric in top_metrics
+        if metric is not None
+    }
+    if len(groups) == 1:
+        return [item.metric_id for item in keyword_ranked[:2]]
+    return None
+
+
+class GroundingService:
+    """Resolve questions via keyword or embedding retrieval over the flat registry."""
+
+    def __init__(
+        self,
+        retriever: MetricRetriever | None = None,
+        *,
+        registry: list[dict[str, Any]] | None = None,
+    ) -> None:
+        self._registry = registry if registry is not None else _load_registry()
+        self._retriever = retriever
+        self._keyword_fallback = KeywordRetriever()
 
     @property
     def registry(self) -> list[dict[str, Any]]:
         return list(self._registry)
 
-    def resolve(self, question: str) -> GroundingResult:
-        normalized = _normalize_question(question)
-        matches = self._find_matching_metrics(normalized)
+    def _get_retriever(self) -> MetricRetriever:
+        if self._retriever is not None:
+            return self._retriever
+        settings = get_settings()
+        return select_retriever(settings.grounding_retrieval)
 
-        if not matches:
+    def resolve(self, question: str) -> GroundingResult:
+        settings = get_settings()
+        keyword_ranked = self._keyword_fallback.rank(question, self._registry)
+
+        tied = _keyword_tied_candidates(keyword_ranked, self._registry)
+        if tied is not None:
+            return GroundingResult(
+                status="ambiguous",
+                candidates=tied,
+                clarify_prompt=_build_clarify_prompt(tied, self._registry),
+            )
+
+        retriever = self._get_retriever()
+        ranked = retriever.rank(question, self._registry)
+
+        if not ranked:
+            return self._resolve_from_keyword(keyword_ranked, question)
+
+        top = ranked[0]
+        top_metric = _metric_by_id(self._registry, top.metric_id)
+        has_keyword_overlap = bool(keyword_ranked and keyword_ranked[0].metric_id == top.metric_id)
+
+        required_score = settings.embedding_match_threshold
+        if not has_keyword_overlap:
+            required_score += 0.15
+
+        if top.score < required_score:
+            return self._resolve_from_keyword(keyword_ranked, question)
+
+        if len(ranked) > 1:
+            second = ranked[1]
+            if (
+                second.score >= settings.embedding_match_threshold
+                and top.score - second.score < settings.embedding_ambiguity_margin
+            ):
+                top_metrics = [
+                    _metric_by_id(self._registry, item.metric_id)
+                    for item in ranked[:2]
+                ]
+                groups = {
+                    (metric.get("ambiguity_group") or metric["id"])
+                    for metric in top_metrics
+                    if metric is not None
+                }
+                if len(groups) == 1:
+                    candidate_ids = [item.metric_id for item in ranked[:2]]
+                    return GroundingResult(
+                        status="ambiguous",
+                        candidates=candidate_ids,
+                        clarify_prompt=_build_clarify_prompt(candidate_ids, self._registry),
+                    )
+
+        if top_metric is None:
             return GroundingResult(status="out_of_set")
 
-        if len(matches) > 1:
-            groups = {metric.get("ambiguity_group") or metric["id"] for metric in matches}
-            if len(groups) == 1:
-                candidate_ids = [metric["id"] for metric in matches]
-                return GroundingResult(
-                    status="ambiguous",
-                    candidates=candidate_ids,
-                    clarify_prompt=_build_clarify_prompt(candidate_ids, self._registry),
-                )
+        return self._build_match(top_metric, question)
 
-        metric = matches[0]
+    def _resolve_from_keyword(self, keyword_ranked: list, question: str) -> GroundingResult:
+        if not keyword_ranked:
+            return GroundingResult(status="out_of_set")
+        metric = _metric_by_id(self._registry, keyword_ranked[0].metric_id)
+        if metric is None:
+            return GroundingResult(status="out_of_set")
+        return self._build_match(metric, question)
+
+    def _build_match(self, metric: dict[str, Any], question: str) -> GroundingResult:
         month = extract_month(question)
         resolved_params: dict[str, str] = {}
         if month is not None and _requires_question_param(metric, "month"):
@@ -179,19 +246,6 @@ class GroundingService:
             resolved_params=resolved_params or None,
         )
 
-    def _find_matching_metrics(self, normalized_question: str) -> list[dict[str, Any]]:
-        matched: list[tuple[int, dict[str, Any]]] = []
-        for metric in self._registry:
-            match_length = _best_alias_match_length(normalized_question, metric)
-            if match_length > 0:
-                matched.append((match_length, metric))
-
-        if not matched:
-            return []
-
-        max_length = max(length for length, _ in matched)
-        return [metric for length, metric in matched if length == max_length]
-
 
 def resolve(question: str) -> GroundingResult:
     """Resolve a question using the module-level registry loaded at startup."""
@@ -199,5 +253,5 @@ def resolve(question: str) -> GroundingResult:
 
 
 # Registry loaded once at import time (startup for the skeleton).
-# TODO(harden): back registry with dbt Semantic Layer or Cube; add embedding retrieval
+# TODO(harden): back registry with dbt Semantic Layer or Cube; add join-path graph reasoning
 grounding_service = GroundingService()

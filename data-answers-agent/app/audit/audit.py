@@ -7,7 +7,7 @@ from typing import Any
 
 import structlog
 
-from app.models import AllowDeny, GroundingResult, UserPrincipal
+from app.models import AllowDeny, ExecutionContext, GroundingResult, UserPrincipal
 
 # TODO(harden): OpenTelemetry span export + durable audit store
 
@@ -133,6 +133,22 @@ def record_policy(request_id: str, allowed: bool, reason: str) -> None:
 def record_bytes(request_id: str, bytes_scanned: int) -> None:
     record = _sink._records.setdefault(request_id, {"request_id": request_id})
     record["bytes_scanned"] = bytes_scanned
+
+
+def record_executing_identity(request_id: str, context: ExecutionContext) -> None:
+    from app.config import get_settings
+
+    record = _sink._records.setdefault(request_id, {"request_id": request_id})
+    record["executing_identity_id"] = context.executing_identity_id
+    record["executing_identity_type"] = context.executing_identity_type
+    record["identity_mode"] = get_settings().identity_mode
+    logger.info(
+        "audit.identity",
+        request_id=request_id,
+        executing_identity_id=context.executing_identity_id,
+        executing_identity_type=context.executing_identity_type,
+        identity_mode=record["identity_mode"],
+    )
 
 
 def close_record(

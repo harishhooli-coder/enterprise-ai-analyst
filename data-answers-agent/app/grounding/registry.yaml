@@ -10,6 +10,8 @@ metrics:
       - gross revenue
       - total sales
       - revenue
+      - how much did we sell
+      - sales volume
     template: |
       SELECT SUM(amount) AS total_revenue
       FROM `{project}.{dataset}.sales`
@@ -52,6 +54,57 @@ metrics:
         resolved_by: warehouse
     ambiguity_group: revenue
 
+  - id: order_count
+    name: Order Count
+    description: Total number of orders placed in a calendar month
+    aliases:
+      - order count
+      - number of orders
+      - how many orders
+      - orders placed
+      - order volume
+    template: |
+      SELECT COUNT(*) AS order_count
+      FROM `{project}.{dataset}.orders`
+      WHERE month = @month
+        AND {region_filter}
+    parameters:
+      - name: month
+        type: string
+        description: Calendar month in YYYY-MM format
+        required: true
+      - name: region_filter
+        type: string
+        description: Row-level region predicate injected from user principal (not from question)
+        required: true
+        resolved_by: warehouse
+    ambiguity_group: orders
+
+  - id: average_order_value
+    name: Average Order Value
+    description: Mean order amount for a calendar month
+    aliases:
+      - average order value
+      - aov
+      - mean order size
+      - average basket size
+    template: |
+      SELECT AVG(order_amount) AS average_order_value
+      FROM `{project}.{dataset}.orders`
+      WHERE month = @month
+        AND {region_filter}
+    parameters:
+      - name: month
+        type: string
+        description: Calendar month in YYYY-MM format
+        required: true
+      - name: region_filter
+        type: string
+        description: Row-level region predicate injected from user principal (not from question)
+        required: true
+        resolved_by: warehouse
+    ambiguity_group: orders
+
   - id: active_customers
     name: Active Customers
     description: Count of distinct active customers in a calendar month
@@ -59,6 +112,7 @@ metrics:
       - active customers
       - customer count
       - customers
+      - how many customers
     template: |
       SELECT COUNT(DISTINCT customer_id) AS active_customers
       FROM `{project}.{dataset}.customers`

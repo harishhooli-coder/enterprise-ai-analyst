@@ -1,6 +1,7 @@
 """Environment-driven configuration. No hardcoded secrets or project IDs."""
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,6 +21,34 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
     agent_step_cap: int = Field(default=10, validation_alias="AGENT_STEP_CAP")
     token_budget: int = Field(default=8000, validation_alias="TOKEN_BUDGET")
+    grounding_retrieval: Literal["keyword", "embedding", "auto"] = Field(
+        default="auto",
+        validation_alias="GROUNDING_RETRIEVAL",
+    )
+    embedding_match_threshold: float = Field(
+        default=0.25,
+        validation_alias="EMBEDDING_MATCH_THRESHOLD",
+    )
+    embedding_ambiguity_margin: float = Field(
+        default=0.05,
+        validation_alias="EMBEDDING_AMBIGUITY_MARGIN",
+    )
+    identity_mode: Literal["stub", "wif"] = Field(
+        default="stub",
+        validation_alias="IDENTITY_MODE",
+    )
+    bq_dev_service_account: str = Field(
+        default="",
+        validation_alias="BQ_DEV_SERVICE_ACCOUNT",
+    )
+    bq_impersonate_target: str = Field(
+        default="",
+        validation_alias="BQ_IMPERSONATE_TARGET",
+    )
+    wif_provider_config: str = Field(
+        default="",
+        validation_alias="WIF_PROVIDER_CONFIG",
+    )
 
 
 @lru_cache
