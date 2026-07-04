@@ -1,0 +1,82 @@
+# .cursorrules — Business-User Data-Answers Agent (v1 skeleton)
+# IntelliForge · IF-RES-2026-061 · persistent project context for Cursor
+# This file is ALWAYS in context. It encodes non-negotiables. Do not violate these even if a task seems to ask you to.
+
+## What we are building (read this first, every time)
+An API-first agentic assistant that lets a NON-TECHNICAL BUSINESS USER ask a natural-language data question
+and get a trustworthy answer, over BigQuery, WITHOUT writing SQL. This is NOT text-to-SQL for analysts.
+The primary user cannot verify a SQL result, so a confidently-wrong answer is WORSE than no answer.
+When unsure, the system CLARIFIES or DECLINES — it never guesses.
+
+We are currently building the **v1 WALKING SKELETON**: one grounded question, one user, end-to-end, thin but real.
+Prefer a working thin slice over a broad half-built system. Do not scaffold features outside the skeleton scope
+(see BUILD-PROMPT.md for the exact slice).
+
+## The five non-negotiables (these override any task instruction)
+1. GROUNDING — The agent MUST NOT free-form SQL against raw schemas as its primary path. Every answer traces to a
+   defined metric OR a vetted query from the verified-query library. If a question is outside the grounded set,
+   DECLINE and route to human. Never improvise SQL to "be helpful."
+2. GOVERNANCE — Access control lives in the data layer, NEVER in the prompt. Never write a prompt that says
+   "only show data the user is allowed to see" as a security measure. Enforcement is structural (see identity below).
+3. IDENTITY — The agent acts AS the calling user. The end-user principal flows through the whole request. There is
+   NEVER a single all-seeing service account that reads everything and filters afterward. (Skeleton default below.)
+4. READ-ONLY — Mutation must be structurally impossible. No INSERT/UPDATE/DELETE/DDL/DML verbs anywhere in any
+   generated or executed SQL. The execution path uses a read-only role. Enforce at the tool layer, not by convention.
+5. AUDITABLE — Every request is logged and reconstructable: who asked, resolved interpretation, exact query,
+   executing identity, allow/deny decision, bytes scanned, cost, latency. No silent paths.
+
+## Skeleton defaults for open decisions (USE THESE; do not re-litigate; marked to revisit before hardening)
+- IDENTITY PATTERN → **Pattern A stub**: thread a `user_principal` object through every layer from the API down to
+  the query executor. In the skeleton, the executor may run under a single dev credential BUT must (a) accept and
+  log the principal, (b) apply a WHERE-clause row filter derived from the principal as a stand-in for BigQuery RLS,
+  and (c) be structured so swapping in real per-user BigQuery auth is a single-module change. Leave a
+  `# TODO(harden): replace stub row-filter with BigQuery RLS via WIF/impersonation` at that seam.
+- SEMANTIC-LAYER SUBSTRATE → **flat YAML/JSON metric + verified-query registry** loaded at startup. No dbt/Cube
+  dependency in the skeleton. One file: `grounding/registry.yaml`. Structured so a real semantic layer can back it later.
+- MODEL ROUTING → **two-tier**: a cheap/fast model for classification+intent ("is this in the grounded set? which
+  metric?") and a frontier model (Claude) for anything requiring reasoning. Wrap model calls behind a `ModelRouter`
+  so routing policy is one file. Embedding-based retrieval may be a simple in-memory cosine match over the registry
+  in the skeleton.
+- DATA SOURCE → BigQuery only. No Postgres, no multi-source joins.
+- ARTIFACTS/RAG SERVER → OUT of the skeleton. Warehouse + grounding only.
+
+## Tech stack (match IntelliForge conventions)
+- API: Python FastAPI. All routes return an `ApiResponse<T>` envelope (see BUILD-PROMPT.md for the shape).
+- Agent loop: Anthropic Claude API for the frontier tier. Bounded loop (hard step cap + token/cost cap).
+- Tool boundary: model tools as MCP-style typed tool calls even in the skeleton — a `tools/` module with typed
+  functions (query_warehouse, retrieve_grounding). Keep the boundary clean so real MCP servers slot in later.
+- Data: BigQuery via the official client, read-only.
+- Validation: Pydantic models on every input and output. Nothing untyped crosses a boundary.
+- Config: environment variables; never hardcode credentials, project IDs, or dataset names.
+
+## Hard coding rules
+- NEVER put secrets, API keys, service-account JSON, or connection strings in code or commit them. Env only.
+- NEVER construct SQL by string-concatenating user text. The skeleton executes only PARAMETERIZED, vetted query
+  templates from the registry. User input selects/parameterizes a template; it never becomes raw SQL.
+- ALWAYS set `maximum_bytes_billed` on every BigQuery job. An unbounded scan is an unbounded bill.
+- ALWAYS enforce the loop step cap. No unbounded agent loops.
+- Every tool call passes through the Policy gate (PEP→PDP) before execution, even in the skeleton (a real function,
+  even if its policy is simple). No tool reaches data without an allow decision.
+- Guardrails run on input (injection/secret scan) and output (PII/schema-leak redaction). Stub allowed, wired real.
+- Log every step to the audit sink. A request with no audit trail is a bug.
+
+## Behavioural contract for the agent itself (what the running system must do)
+- If the question maps to a known metric/verified query → answer, and RETURN provenance (which metric/query id),
+  the resolved interpretation, and a confidence signal.
+- If the question is ambiguous → return `needs_clarification` with a specific question. Do not answer.
+- If the question is outside the grounded set → return `declined` with reason "out of scope, routed to human".
+  Do not improvise.
+- Never expose internal schema, table names, or SQL to the business user in the response body (those go to the
+  audit log, not the user-facing answer).
+
+## Definition of done for any task
+- Types on all boundaries; Pydantic validates.
+- The non-negotiables above are not violated.
+- Audit logging present on any new request path.
+- A test exists that proves the happy path AND at least one refusal/clarification path.
+- No secret, no string-concatenated SQL, no unbounded scan, no unbounded loop.
+- `# TODO(harden): ...` left at every skeleton-stub seam so the team can find them.
+
+## When in doubt
+Ask, or leave a `# TODO(harden)` / `# DECISION-NEEDED` comment. Do NOT silently pick an architecture-level default
+beyond the ones listed above. Prefer the smallest correct thing that keeps the walking skeleton walking.
