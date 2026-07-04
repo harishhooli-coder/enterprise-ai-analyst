@@ -62,9 +62,15 @@ Tests mock the model router and BigQuery — no live API keys required in CI.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ANTHROPIC_API_KEY` | Frontier model tier (optional in skeleton) | empty |
+| `ANTHROPIC_API_KEY` | Anthropic fallback for answer formatting | empty |
+| `FRONTIER_PROVIDER` | Primary frontier backend: `nim` or `anthropic` | `nim` |
+| `FRONTIER_MODEL` | Anthropic model when provider is `anthropic` | `claude-sonnet-4-6` |
+| `NIM_API_KEY` | NVIDIA NIM API key (`nvapi-...`) | empty |
+| `NIM_BASE_URL` | NIM OpenAI-compatible endpoint | `https://integrate.api.nvidia.com/v1` |
+| `NIM_MODEL` | NIM model id for answer formatting | `meta/llama-3.3-70b-instruct` |
 | `BQ_PROJECT_ID` | BigQuery project | `dev-project` |
 | `BQ_DATASET` | BigQuery dataset | `analytics` |
+| `BQ_USE_MOCK` | Force seed-data mock warehouse (`1`/`true`) | auto when project is `dev-project` |
 | `MAX_BYTES_BILLED` | Bytes cap per query | `1000000000` |
 | `AGENT_STEP_CAP` | Max orchestrator steps | `10` |
 | `TOKEN_BUDGET` | Token/cost budget abort threshold | `8000` |
@@ -75,6 +81,7 @@ Tests mock the model router and BigQuery — no live API keys required in CI.
 | `BQ_DEV_SERVICE_ACCOUNT` | Executing identity logged in stub mode | empty |
 | `BQ_IMPERSONATE_TARGET` | SA to impersonate per user (WIF mode) | empty |
 | `WIF_PROVIDER_CONFIG` | Path to WIF provider config JSON (WIF mode) | empty |
+| `CORS_ORIGINS` | Comma-separated browser origins for the test UI | `http://localhost:3000` |
 | `LOG_LEVEL` | Log level | `INFO` |
 
 ## Known limitations (skeleton)
@@ -93,6 +100,7 @@ Tests mock the model router and BigQuery — no live API keys required in CI.
 - **Embedding retrieval tier** — `GROUNDING_RETRIEVAL=auto|embedding|keyword` with hash-based embeddings by default; optional `pip install -e ".[embeddings]"` for sentence-transformers.
 - **Expanded revenue domain registry** — `order_count`, `average_order_value` alongside existing revenue/customer metrics.
 - **Eval metric hooks** — `GET /metrics` exposes deflection rate, clarification rate, latency and bytes averages for Phase 3 evaluation.
+- **Golden-set eval harness** — `python -m app.eval` runs labeled trust cases offline; `pytest tests/test_eval_harness.py` gates CI.
 
 ### Identity modes
 
@@ -103,7 +111,7 @@ Tests mock the model router and BigQuery — no live API keys required in CI.
 
 Audit records include `executing_identity_id`, `executing_identity_type`, and `identity_mode` so every request answers *who asked* vs *who executed*.
 
-**GCP activation checklist** (when you have a project):
+**GCP activation checklist** (when you have a project): see [`docs/gcp-connectivity-checklist.md`](docs/gcp-connectivity-checklist.md) for the full list of what to provide.
 
 1. Create a read-only service account and row access policies on `sales`, `orders`, `customers` — see [`docs/bigquery-rls-setup.sql`](docs/bigquery-rls-setup.sql)
 2. Configure Workload Identity Federation or service account impersonation
@@ -126,6 +134,50 @@ curl http://localhost:8000/metrics
 ```
 
 Returns counters keyed by response status plus `deflection_rate` and `clarification_rate`.
+
+### Mock BigQuery (local dev, no GCP)
+
+When `BQ_PROJECT_ID=dev-project` or `BQ_USE_MOCK=1`, queries run against seed JSON tables in [`mock_data/`](mock_data/):
+
+| File | Contents |
+|------|----------|
+| `sales.json` | Row-level `amount` / `net_amount` by month and region |
+| `orders.json` | Monthly rollups: `order_count`, `total_order_amount` |
+| `customers.json` | Monthly rollups: `active_customers` |
+
+Regions: **US**, **EU**, **APAC**. Months: **2026-05**, **2026-06**.
+
+The mock executor applies month params and principal region filters like the real warehouse stub. Example (US+EU, 2026-06): total revenue **$1.25M**, order count **18,400**, AOV **$67.93**, active customers **42,500**.
+
+### Evaluation harness (golden set)
+
+Offline trust eval over labeled questions in [`eval/golden_set.yaml`](eval/golden_set.yaml):
+
+```bash
+python -m app.eval              # human-readable summary
+python -m app.eval --json         # full JSON report
+pytest tests/test_eval_harness.py # CI gate (all golden cases must pass)
+```
+
+Reports **deflection rate**, **clarification rate**, and **decline rate** plus per-case pass/fail against expected status, metric source, and audit fields. Uses mock BigQuery + stub identity — no live GCP or Anthropic API.
+
+## Test UI (Next.js)
+
+A developer harness lives in [`../data-answers-ui`](../data-answers-ui/). It is not a production business interface.
+
+```bash
+# Terminal 1 — API
+cd data-answers-agent
+uvicorn app.main:app --reload --port 8000
+
+# Terminal 2 — UI
+cd ../data-answers-ui
+cp .env.local.example .env.local
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). CORS defaults to `http://localhost:3000` via `CORS_ORIGINS`.
 
 ## Before hardening — TODO seams
 
@@ -165,8 +217,17 @@ data-answers-agent/
       warehouse.py       # Read-only BigQuery tool
       guardrails.py      # Input scan + output redaction
     audit/audit.py       # Structured audit logger
+    eval/
+      harness.py         # Golden-set runner
+      models.py          # EvalReport, GoldenCase
+  eval/
+    golden_set.yaml      # Labeled questions for offline eval
   docs/
     bigquery-rls-setup.sql
+  mock_data/
+    sales.json
+    orders.json
+    customers.json
   tests/
   pyproject.toml
   .env.example

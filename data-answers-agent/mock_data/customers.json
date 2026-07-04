@@ -1,0 +1,8 @@
+[
+  {"month": "2026-06", "region": "US", "active_customers": 25500},
+  {"month": "2026-06", "region": "EU", "active_customers": 17000},
+  {"month": "2026-06", "region": "APAC", "active_customers": 8200},
+  {"month": "2026-05", "region": "US", "active_customers": 23100},
+  {"month": "2026-05", "region": "EU", "active_customers": 15800},
+  {"month": "2026-05", "region": "APAC", "active_customers": 7100}
+]

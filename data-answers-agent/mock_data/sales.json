@@ -1,0 +1,8 @@
+[
+  {"month": "2026-06", "region": "US", "amount": 750000.00, "net_amount": 585000.00},
+  {"month": "2026-06", "region": "EU", "amount": 500000.00, "net_amount": 395000.00},
+  {"month": "2026-06", "region": "APAC", "amount": 300000.00, "net_amount": 240000.00},
+  {"month": "2026-05", "region": "US", "amount": 620000.00, "net_amount": 496000.00},
+  {"month": "2026-05", "region": "EU", "amount": 410000.00, "net_amount": 328000.00},
+  {"month": "2026-05", "region": "APAC", "amount": 180000.00, "net_amount": 144000.00}
+]

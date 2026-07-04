@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import os
 import re
 from typing import Optional, Protocol
 
 from pydantic import BaseModel, Field
+
+from app.config import get_settings
 
 # TODO(harden): centralize routing policy (model IDs, tier thresholds, embedding retrieval)
 
@@ -42,12 +43,13 @@ class ModelRouter:
         client: Optional[_AnthropicClient] = None,
         api_key: Optional[str] = None,
         frontier_model: Optional[str] = None,
+        frontier_provider: Optional[str] = None,
     ) -> None:
         self._client = client
         self._api_key = api_key
-        self._frontier_model = frontier_model or os.getenv(
-            "FRONTIER_MODEL", "claude-sonnet-4-20250514"
-        )
+        settings = get_settings()
+        self._frontier_model = frontier_model or settings.frontier_model
+        self._frontier_provider = frontier_provider or settings.frontier_provider
         self._tokens_used = 0
         # TODO(harden): inject classify_fn / reason_fn for policy-driven tier selection
 
@@ -58,12 +60,13 @@ class ModelRouter:
     def reset_token_count(self) -> None:
         self._tokens_used = 0
 
-    def _get_client(self) -> _AnthropicClient:
+    def _get_anthropic_client(self) -> _AnthropicClient:
         if self._client is not None:
             return self._client
         import anthropic
 
-        key = self._api_key if self._api_key is not None else os.getenv("ANTHROPIC_API_KEY", "")
+        settings = get_settings()
+        key = self._api_key if self._api_key is not None else settings.anthropic_api_key
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY is not configured")
         self._client = anthropic.Anthropic(api_key=key)
@@ -88,21 +91,54 @@ class ModelRouter:
         return IntentResult(intent="out_of_scope", confidence=0.7)
 
     def reason(self, prompt: str) -> str:
-        """Frontier tier: Anthropic Claude for grounded result formatting (lazy client)."""
+        """Frontier tier: NIM (primary) or Anthropic for grounded result formatting."""
         self._tokens_used += min(len(prompt) // 4, 500)
-        key = self._api_key if self._api_key is not None else os.getenv("ANTHROPIC_API_KEY", "")
-        if self._client is None and not key:
-            return self._stub_reason(prompt)
-        client = self._get_client()
+        settings = get_settings()
+        provider = self._frontier_provider
+
+        if provider == "nim" and settings.nim_api_key:
+            try:
+                text = self._reason_nim(prompt)
+                self._tokens_used += len(text) // 4
+                return text
+            except Exception:
+                if settings.anthropic_api_key:
+                    text = self._reason_anthropic(prompt)
+                    self._tokens_used += len(text) // 4
+                    return text
+                raise
+
+        if provider == "anthropic" and settings.anthropic_api_key:
+            text = self._reason_anthropic(prompt)
+            self._tokens_used += len(text) // 4
+            return text
+
+        if settings.nim_api_key:
+            text = self._reason_nim(prompt)
+            self._tokens_used += len(text) // 4
+            return text
+
+        if settings.anthropic_api_key:
+            text = self._reason_anthropic(prompt)
+            self._tokens_used += len(text) // 4
+            return text
+
+        return self._stub_reason(prompt)
+
+    def _reason_nim(self, prompt: str) -> str:
+        from app.loop.nim_client import chat_completion
+
+        return chat_completion(prompt)
+
+    def _reason_anthropic(self, prompt: str) -> str:
+        client = self._get_anthropic_client()
         response = client.messages.create(
             model=self._frontier_model,
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
         )
         block = response.content[0]
-        text = block.text  # type: ignore[attr-defined]
-        self._tokens_used += len(text) // 4
-        return text
+        return block.text  # type: ignore[attr-defined]
 
     def _stub_reason(self, prompt: str) -> str:
         if "total_revenue" in prompt or "1250000" in prompt or "1,250,000" in prompt:

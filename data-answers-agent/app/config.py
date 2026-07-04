@@ -15,6 +15,23 @@ class Settings(BaseSettings):
     )
 
     anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
+    frontier_provider: Literal["nim", "anthropic"] = Field(
+        default="nim",
+        validation_alias="FRONTIER_PROVIDER",
+    )
+    frontier_model: str = Field(
+        default="claude-sonnet-4-6",
+        validation_alias="FRONTIER_MODEL",
+    )
+    nim_api_key: str = Field(default="", validation_alias="NIM_API_KEY")
+    nim_base_url: str = Field(
+        default="https://integrate.api.nvidia.com/v1",
+        validation_alias="NIM_BASE_URL",
+    )
+    nim_model: str = Field(
+        default="meta/llama-3.3-70b-instruct",
+        validation_alias="NIM_MODEL",
+    )
     bq_project_id: str = Field(default="dev-project", validation_alias="BQ_PROJECT_ID")
     bq_dataset: str = Field(default="analytics", validation_alias="BQ_DATASET")
     max_bytes_billed: int = Field(default=1_000_000_000, validation_alias="MAX_BYTES_BILLED")
@@ -48,6 +65,10 @@ class Settings(BaseSettings):
     wif_provider_config: str = Field(
         default="",
         validation_alias="WIF_PROVIDER_CONFIG",
+    )
+    cors_origins: str = Field(
+        default="http://localhost:3000",
+        validation_alias="CORS_ORIGINS",
     )
 
 

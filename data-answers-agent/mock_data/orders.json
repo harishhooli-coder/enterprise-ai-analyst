@@ -1,0 +1,8 @@
+[
+  {"month": "2026-06", "region": "US", "order_count": 11000, "total_order_amount": 746950.00},
+  {"month": "2026-06", "region": "EU", "order_count": 7400, "total_order_amount": 502954.00},
+  {"month": "2026-06", "region": "APAC", "order_count": 5200, "total_order_amount": 353992.00},
+  {"month": "2026-05", "region": "US", "order_count": 9800, "total_order_amount": 656922.00},
+  {"month": "2026-05", "region": "EU", "order_count": 6100, "total_order_amount": 408978.00},
+  {"month": "2026-05", "region": "APAC", "order_count": 2900, "total_order_amount": 194483.00}
+]

@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.audit.audit import audit_sink
+from app.config import get_settings
 from app.identity.broker import set_identity_broker
 from app.identity.stub_broker import StubIdentityBroker
 from app.loop.model_router import router
@@ -44,27 +45,14 @@ def no_regions_principal():
 
 @pytest.fixture
 def mock_warehouse(monkeypatch):
-    def fake_query(template, params, execution_context, metric_id="unknown"):
-        from app.models import WarehouseResult
+    """Route E2E tests through seed-data mock warehouse (no monkeypatched stubs)."""
+    monkeypatch.delenv("BQ_USE_MOCK", raising=False)
+    monkeypatch.setenv("BQ_PROJECT_ID", "dev-project")
+    get_settings.cache_clear()
 
-        stubs = {
-            "total_revenue": [{"total_revenue": 1_250_000.00}],
-            "net_revenue": [{"net_revenue": 980_000.00}],
-            "active_customers": [{"active_customers": 42_500}],
-            "order_count": [{"order_count": 18_400}],
-            "average_order_value": [{"average_order_value": 67.93}],
-        }
-        rows = stubs.get(metric_id, [{"value": 0}])
-        return WarehouseResult(
-            rows=rows,
-            bytes_scanned=1024,
-            template_id=metric_id,
-            executing_identity_id=execution_context.executing_identity_id,
-        )
+    yield None
 
-    monkeypatch.setattr("app.loop.orchestrator.query_warehouse", fake_query)
-    monkeypatch.setattr("app.tools.warehouse.query_warehouse", fake_query)
-    return fake_query
+    get_settings.cache_clear()
 
 
 @pytest.fixture(autouse=True)

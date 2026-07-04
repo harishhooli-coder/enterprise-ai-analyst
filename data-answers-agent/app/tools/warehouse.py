@@ -14,8 +14,6 @@ WRITE_VERBS = re.compile(
     re.IGNORECASE,
 )
 
-_MOCK_TOTAL_REVENUE_ROWS: list[dict[str, Any]] = [{"total_revenue": 1_234_567.89}]
-
 _bq_client_factory: Optional[
     Callable[[str, dict[str, str], ExecutionContext, int], list[dict]]
 ] = None
@@ -87,12 +85,6 @@ def _prepare_sql(
     return sql
 
 
-def _mock_rows(template_sql: str) -> list[dict]:
-    if "total_revenue" in template_sql.lower() or "revenue" in template_sql.lower():
-        return [dict(row) for row in _MOCK_TOTAL_REVENUE_ROWS]
-    return []
-
-
 def query_warehouse(
     template_sql: str,
     params: dict[str, str],
@@ -122,10 +114,17 @@ def query_warehouse(
         )
 
     if _use_mock_mode():
-        _last_bytes_billed = 0
+        from app.tools.mock_warehouse import execute_mock_query
+
+        rows, bytes_scanned = execute_mock_query(
+            metric_id=metric_id,
+            params=params,
+            execution_context=execution_context,
+        )
+        _last_bytes_billed = bytes_scanned
         return WarehouseResult(
-            rows=_mock_rows(template_sql),
-            bytes_scanned=0,
+            rows=rows,
+            bytes_scanned=bytes_scanned,
             template_id=metric_id,
             executing_identity_id=execution_context.executing_identity_id,
         )
