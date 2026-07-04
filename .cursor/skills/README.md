@@ -15,6 +15,14 @@ Project-scoped skills for building the enterprise-ai-analyst walking skeleton an
 | **skeleton-testing** | pytest happy/clarify/decline/readonly tests |
 | **anthropic-claude-api** | Frontier model tier in model_router |
 
+## UI/UX (third-party)
+
+| Skill | Use when |
+|-------|----------|
+| **ui-ux-pro-max** | Building or improving UI/UX; design systems, styles, colors, typography, accessibility |
+
+Installed via [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill). Update with `npx ui-ux-pro-max-cli update`.
+
 ## Phase 1+ — Hardening backlog
 
 | Skill | Use when |

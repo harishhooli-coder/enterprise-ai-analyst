@@ -56,6 +56,7 @@ def _eval_mock_router(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _eval_mock_warehouse(monkeypatch):
+    monkeypatch.setenv("USE_MCP", "0")
     monkeypatch.setenv("WAREHOUSE_BACKEND", "mock")
     monkeypatch.setenv("BQ_USE_MOCK", "1")
     monkeypatch.setenv("BQ_PROJECT_ID", "dev-project")

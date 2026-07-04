@@ -7,7 +7,7 @@ from typing import Any
 
 from app.config import get_settings
 from app.models import ExecutionContext, WarehouseResult
-from app.tools.warehouse import assert_readonly, region_filter_clause
+from app.tools.warehouse_core import assert_readonly, region_filter_clause
 
 # BigQuery-style @param placeholders after _prepare_sql
 _PARAM_PATTERN = re.compile(r"@(\w+)")

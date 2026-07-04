@@ -143,7 +143,15 @@ class Orchestrator:
                 execution_context,
                 metric_id=grounding.metric_id,
             )
-            step("warehouse_query", {"rows": len(result.rows), "template_id": result.template_id})
+            transport = "mcp" if self._settings.use_mcp_transport else "direct"
+            step(
+                "warehouse_query",
+                {
+                    "rows": len(result.rows),
+                    "template_id": result.template_id,
+                    "transport": transport,
+                },
+            )
             record_bytes(request_id, result.bytes_scanned)
 
             self._check_token_budget(request_id)

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Data-Answers Test Console",
-  description: "Developer harness for the IF-RES-2026-061 Data-Answers Agent API",
+  title: "Data Answers",
+  description: "Ask business questions about your data in plain English",
 };
 
 export default function RootLayout({
@@ -27,7 +27,9 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900">
+        {children}
+      </body>
     </html>
   );
 }

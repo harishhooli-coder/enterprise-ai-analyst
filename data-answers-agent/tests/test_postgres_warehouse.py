@@ -22,6 +22,7 @@ def postgres_env(monkeypatch):
     database_url = os.getenv("DATABASE_URL", "").strip()
     if not database_url:
         pytest.skip("DATABASE_URL not set")
+    monkeypatch.setenv("USE_MCP", "0")
     monkeypatch.setenv("WAREHOUSE_BACKEND", "postgres")
     monkeypatch.setenv("DATABASE_URL", database_url)
     monkeypatch.setenv("BQ_USE_MOCK", "0")

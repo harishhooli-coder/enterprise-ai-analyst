@@ -10,6 +10,15 @@ from app.main import app
 from app.models import ExecutionContext, IntentResult, UserPrincipal
 
 
+@pytest.fixture(autouse=True)
+def disable_mcp_transport(monkeypatch):
+    """Tests use direct warehouse unless explicitly testing MCP."""
+    monkeypatch.setenv("USE_MCP", "0")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 @pytest.fixture
 def client():
     audit_sink.clear()
@@ -46,6 +55,7 @@ def no_regions_principal():
 @pytest.fixture
 def mock_warehouse(monkeypatch):
     """Route E2E tests through seed-data mock warehouse (no monkeypatched stubs)."""
+    monkeypatch.setenv("USE_MCP", "0")
     monkeypatch.setenv("WAREHOUSE_BACKEND", "mock")
     monkeypatch.setenv("BQ_USE_MOCK", "1")
     monkeypatch.setenv("BQ_PROJECT_ID", "dev-project")

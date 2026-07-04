@@ -75,6 +75,12 @@ class Settings(BaseSettings):
         validation_alias="WAREHOUSE_BACKEND",
     )
     database_url: str = Field(default="", validation_alias="DATABASE_URL")
+    use_mcp_transport: bool = Field(default=False, validation_alias="USE_MCP")
+    mcp_python: str = Field(default="", validation_alias="MCP_PYTHON")
+    classify_provider: Literal["auto", "heuristic", "nim"] = Field(
+        default="auto",
+        validation_alias="CLASSIFY_PROVIDER",
+    )
 
 
 @lru_cache
