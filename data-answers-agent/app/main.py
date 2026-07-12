@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.audit.audit import get_audit_sink
+from app.cache.redis_client import redis_health
 from app.config import get_settings
 from app.envelope import ApiResponse
 from app.loop.orchestrator import orchestrator
@@ -30,8 +31,14 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, str | dict]:
+    payload: dict[str, str | dict] = {"status": "ok"}
+    redis_status = redis_health()
+    if redis_status is not None:
+        payload["redis"] = redis_status
+        if redis_status.get("status") != "ok":
+            payload["status"] = "degraded"
+    return payload
 
 
 @app.get("/metrics")

@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.audit.audit import audit_sink
+from app.cache.redis_client import clear_redis_client_cache
 from app.config import get_settings
 from app.identity.broker import set_identity_broker
 from app.identity.stub_broker import StubIdentityBroker
@@ -14,9 +15,12 @@ from app.models import ExecutionContext, IntentResult, UserPrincipal
 def disable_mcp_transport(monkeypatch):
     """Tests use direct warehouse unless explicitly testing MCP."""
     monkeypatch.setenv("USE_MCP", "0")
+    monkeypatch.setenv("AUDIT_STORE_BACKEND", "memory")
     get_settings.cache_clear()
+    clear_redis_client_cache()
     yield
     get_settings.cache_clear()
+    clear_redis_client_cache()
 
 
 @pytest.fixture

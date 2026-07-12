@@ -81,6 +81,22 @@ class Settings(BaseSettings):
         default="auto",
         validation_alias="CLASSIFY_PROVIDER",
     )
+    upstash_redis_rest_url: str = Field(
+        default="",
+        validation_alias="UPSTASH_REDIS_REST_URL",
+    )
+    upstash_redis_rest_token: str = Field(
+        default="",
+        validation_alias="UPSTASH_REDIS_REST_TOKEN",
+    )
+    audit_store_backend: Literal["memory", "redis", "auto"] = Field(
+        default="auto",
+        validation_alias="AUDIT_STORE_BACKEND",
+    )
+    audit_redis_ttl_seconds: int = Field(
+        default=604_800,
+        validation_alias="AUDIT_REDIS_TTL_SECONDS",
+    )
 
 
 @lru_cache
